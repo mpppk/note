@@ -17,7 +17,7 @@ const createTodo = createServerFn({
 })
 	.inputValidator((data: { title: string }) => data)
 	.handler(async ({ data }) => {
-		await db.insert(todos).values({ title: data.title });
+		await db.insert(todos).values({ title: data.title, teamId: "demo" });
 		return { success: true };
 	});
 
