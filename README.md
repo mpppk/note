@@ -25,6 +25,43 @@ This project uses [Vitest](https://vitest.dev/) for testing. You can run the tes
 bun --bun run test
 ```
 
+## Setting up Cloudflare D1
+
+The Drizzle demo at `/demo/drizzle` uses Cloudflare D1 through the `DB` binding in `wrangler.jsonc`.
+
+Create the D1 database:
+
+```bash
+bunx --bun wrangler d1 create todo-app2026-db
+```
+
+Copy the generated `database_id` into `wrangler.jsonc`, replacing `00000000-0000-0000-0000-000000000000`, then regenerate Worker binding types:
+
+```bash
+bun run cf-typegen
+```
+
+For Drizzle Kit remote operations, set these values in `.env.local`:
+
+```bash
+CLOUDFLARE_ACCOUNT_ID=your-account-id
+CLOUDFLARE_DATABASE_ID=your-d1-database-id
+CLOUDFLARE_D1_TOKEN=your-api-token
+```
+
+Generate and apply local D1 migrations:
+
+```bash
+bun run db:generate
+bun run db:migrate:local
+```
+
+Apply migrations to the remote D1 database after the real `database_id` is configured:
+
+```bash
+bun run db:migrate:remote
+```
+
 ## Styling
 
 This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
