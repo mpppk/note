@@ -148,34 +148,34 @@ function DemoDrizzle() {
             Powered by Drizzle ORM
           </h3>
           <p className="text-sm text-indigo-300/80 mb-4">
-            Next-generation ORM for Node.js & TypeScript with PostgreSQL
+            Next-generation ORM for TypeScript with Cloudflare D1
           </p>
           <div className="space-y-2 text-sm">
             <p className="text-indigo-200 font-medium">Setup Instructions:</p>
             <ol className="list-decimal list-inside space-y-2 text-indigo-300/80">
               <li>
-                Configure your{' '}
+                Create your D1 database with{' '}
                 <code className="px-2 py-1 rounded bg-black/30 text-purple-300">
-                  DATABASE_URL
+                  bunx --bun wrangler d1 create todo-app2026-db
                 </code>{' '}
-                in .env.local
+                and update wrangler.jsonc
               </li>
               <li>
                 Run:{' '}
                 <code className="px-2 py-1 rounded bg-black/30 text-purple-300">
-                  bunx --bun drizzle-kit generate
+                  bun run cf-typegen
                 </code>
               </li>
               <li>
                 Run:{' '}
                 <code className="px-2 py-1 rounded bg-black/30 text-purple-300">
-                  bunx --bun drizzle-kit migrate
+                  bun run db:generate
                 </code>
               </li>
               <li>
-                Optional:{' '}
+                Run:{' '}
                 <code className="px-2 py-1 rounded bg-black/30 text-purple-300">
-                  bunx --bun drizzle-kit studio
+                  bun run db:migrate:local
                 </code>
               </li>
             </ol>
