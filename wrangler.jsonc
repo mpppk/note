@@ -18,7 +18,7 @@
 		{
 			"binding": "DB",
 			"database_name": "todo-app2026-db",
-			"database_id": "00000000-0000-0000-0000-000000000000",
+			"database_id": "d34fe9df-9073-4a27-884b-b90195c851bc",
 			"migrations_dir": "drizzle"
 		}
 	]
