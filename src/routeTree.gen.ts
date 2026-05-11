@@ -10,11 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as OrgsRouteImport } from './routes/orgs'
-import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
-import { Route as DemoDrizzleRouteImport } from './routes/demo/drizzle'
-import { Route as DemoBetterAuthRouteImport } from './routes/demo/better-auth'
 import { Route as OrgOrgIdIndexRouteImport } from './routes/org/$orgId/index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as OrgOrgIdTeamTeamIdTodosRouteImport } from './routes/org/$orgId/team/$teamId/todos'
@@ -24,29 +20,9 @@ const OrgsRoute = OrgsRouteImport.update({
   path: '/orgs',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AboutRoute = AboutRouteImport.update({
-  id: '/about',
-  path: '/about',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
-  id: '/demo/tanstack-query',
-  path: '/demo/tanstack-query',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DemoDrizzleRoute = DemoDrizzleRouteImport.update({
-  id: '/demo/drizzle',
-  path: '/demo/drizzle',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DemoBetterAuthRoute = DemoBetterAuthRouteImport.update({
-  id: '/demo/better-auth',
-  path: '/demo/better-auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrgOrgIdIndexRoute = OrgOrgIdIndexRouteImport.update({
@@ -67,22 +43,14 @@ const OrgOrgIdTeamTeamIdTodosRoute = OrgOrgIdTeamTeamIdTodosRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
   '/orgs': typeof OrgsRoute
-  '/demo/better-auth': typeof DemoBetterAuthRoute
-  '/demo/drizzle': typeof DemoDrizzleRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/org/$orgId/': typeof OrgOrgIdIndexRoute
   '/org/$orgId/team/$teamId/todos': typeof OrgOrgIdTeamTeamIdTodosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
   '/orgs': typeof OrgsRoute
-  '/demo/better-auth': typeof DemoBetterAuthRoute
-  '/demo/drizzle': typeof DemoDrizzleRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/org/$orgId': typeof OrgOrgIdIndexRoute
   '/org/$orgId/team/$teamId/todos': typeof OrgOrgIdTeamTeamIdTodosRoute
@@ -90,11 +58,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
   '/orgs': typeof OrgsRoute
-  '/demo/better-auth': typeof DemoBetterAuthRoute
-  '/demo/drizzle': typeof DemoDrizzleRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/org/$orgId/': typeof OrgOrgIdIndexRoute
   '/org/$orgId/team/$teamId/todos': typeof OrgOrgIdTeamTeamIdTodosRoute
@@ -103,33 +67,21 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/about'
     | '/orgs'
-    | '/demo/better-auth'
-    | '/demo/drizzle'
-    | '/demo/tanstack-query'
     | '/api/auth/$'
     | '/org/$orgId/'
     | '/org/$orgId/team/$teamId/todos'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/about'
     | '/orgs'
-    | '/demo/better-auth'
-    | '/demo/drizzle'
-    | '/demo/tanstack-query'
     | '/api/auth/$'
     | '/org/$orgId'
     | '/org/$orgId/team/$teamId/todos'
   id:
     | '__root__'
     | '/'
-    | '/about'
     | '/orgs'
-    | '/demo/better-auth'
-    | '/demo/drizzle'
-    | '/demo/tanstack-query'
     | '/api/auth/$'
     | '/org/$orgId/'
     | '/org/$orgId/team/$teamId/todos'
@@ -137,11 +89,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AboutRoute: typeof AboutRoute
   OrgsRoute: typeof OrgsRoute
-  DemoBetterAuthRoute: typeof DemoBetterAuthRoute
-  DemoDrizzleRoute: typeof DemoDrizzleRoute
-  DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   OrgOrgIdIndexRoute: typeof OrgOrgIdIndexRoute
   OrgOrgIdTeamTeamIdTodosRoute: typeof OrgOrgIdTeamTeamIdTodosRoute
@@ -156,39 +104,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo/tanstack-query': {
-      id: '/demo/tanstack-query'
-      path: '/demo/tanstack-query'
-      fullPath: '/demo/tanstack-query'
-      preLoaderRoute: typeof DemoTanstackQueryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo/drizzle': {
-      id: '/demo/drizzle'
-      path: '/demo/drizzle'
-      fullPath: '/demo/drizzle'
-      preLoaderRoute: typeof DemoDrizzleRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo/better-auth': {
-      id: '/demo/better-auth'
-      path: '/demo/better-auth'
-      fullPath: '/demo/better-auth'
-      preLoaderRoute: typeof DemoBetterAuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/org/$orgId/': {
@@ -217,11 +137,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AboutRoute: AboutRoute,
   OrgsRoute: OrgsRoute,
-  DemoBetterAuthRoute: DemoBetterAuthRoute,
-  DemoDrizzleRoute: DemoDrizzleRoute,
-  DemoTanstackQueryRoute: DemoTanstackQueryRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   OrgOrgIdIndexRoute: OrgOrgIdIndexRoute,
   OrgOrgIdTeamTeamIdTodosRoute: OrgOrgIdTeamTeamIdTodosRoute,
