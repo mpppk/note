@@ -13,7 +13,7 @@ export const Route = createFileRoute("/org/$orgId/")({
 	beforeLoad: async () => {
 		const session = await authClient.getSession();
 		if (!session.data) {
-			throw redirect({ to: "/" });
+			throw redirect({ to: "/login" });
 		}
 	},
 	loader: async ({ context, params }) => {

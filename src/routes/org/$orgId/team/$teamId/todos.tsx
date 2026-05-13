@@ -9,7 +9,7 @@ export const Route = createFileRoute("/org/$orgId/team/$teamId/todos")({
 	beforeLoad: async () => {
 		const session = await authClient.getSession();
 		if (!session.data) {
-			throw redirect({ to: "/" });
+			throw redirect({ to: "/login" });
 		}
 	},
 	loader: async ({ context, params }) => {
