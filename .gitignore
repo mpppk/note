@@ -17,4 +17,4 @@ todos.json
 !.env.example
 
 screenshots/
-test-app.cjs
+*.cjs
