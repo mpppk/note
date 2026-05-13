@@ -2,14 +2,15 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { authClient } from "#/lib/auth-client";
+import { getSession } from "#/server/auth";
 import { listMembers } from "#/server/orgs";
 import { createTodo, deleteTodo, listTodos, updateTodo } from "#/server/todos";
 
 export const Route = createFileRoute("/org/$orgId/team/$teamId/todos")({
 	beforeLoad: async () => {
-		const session = await authClient.getSession();
-		if (!session.data) {
-			throw redirect({ to: "/" });
+		const session = await getSession();
+		if (!session) {
+			throw redirect({ to: "/login" });
 		}
 	},
 	loader: async ({ context, params }) => {

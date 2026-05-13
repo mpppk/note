@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as OrgsRouteImport } from './routes/orgs'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrgOrgIdIndexRouteImport } from './routes/org/$orgId/index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -18,6 +19,11 @@ import { Route as OrgOrgIdTeamTeamIdTodosRouteImport } from './routes/org/$orgId
 const OrgsRoute = OrgsRouteImport.update({
   id: '/orgs',
   path: '/orgs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -43,6 +49,7 @@ const OrgOrgIdTeamTeamIdTodosRoute = OrgOrgIdTeamTeamIdTodosRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
   '/orgs': typeof OrgsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/org/$orgId/': typeof OrgOrgIdIndexRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
   '/orgs': typeof OrgsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/org/$orgId': typeof OrgOrgIdIndexRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
   '/orgs': typeof OrgsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/org/$orgId/': typeof OrgOrgIdIndexRoute
@@ -67,6 +76,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/login'
     | '/orgs'
     | '/api/auth/$'
     | '/org/$orgId/'
@@ -74,6 +84,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/login'
     | '/orgs'
     | '/api/auth/$'
     | '/org/$orgId'
@@ -81,6 +92,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/login'
     | '/orgs'
     | '/api/auth/$'
     | '/org/$orgId/'
@@ -89,6 +101,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LoginRoute: typeof LoginRoute
   OrgsRoute: typeof OrgsRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   OrgOrgIdIndexRoute: typeof OrgOrgIdIndexRoute
@@ -102,6 +115,13 @@ declare module '@tanstack/react-router' {
       path: '/orgs'
       fullPath: '/orgs'
       preLoaderRoute: typeof OrgsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -137,6 +157,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LoginRoute: LoginRoute,
   OrgsRoute: OrgsRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   OrgOrgIdIndexRoute: OrgOrgIdIndexRoute,
