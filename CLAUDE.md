@@ -5,7 +5,12 @@
 ## PRの作成
 
 * PRには実装プランの内容をdetailsタグで記載してください。
-* PRにはTest Planを記載してください。Test Planには、手動での動作確認の手順を記載してください。その後、実際にブラウザで動作確認を行なってください。
+* PRにはTest Planを記載してください。Test Planには、手動での動作確認の手順を記載してください。その後、
+### PRのTest Planの動作確認
+* PRを作成したら、実際にブラウザで動作確認を行なってください。
 * ブラウザでの動作確認中はスクリーンショットを適宜撮影し、Gyazo CLI経由でアップロードしてください。
 * 動作確認の完了後は、結果をPRのdescriptionに追記してください。結果には撮影したスクリーンショットのGyazo画像を記載してください。
   * 例: `![todos page](https://i.gyazo.com/c61050ac7cb4454cdaa9525f41810987.png)`
+
+### Cloudflare Workersの環境での動作確認
+* PR作成後に、Cloudflare Workersの環境が自動で立ち上がります。この環境が作成されたら、上記記載の動作確認をCloudflare Workersの環境で行なってください。
