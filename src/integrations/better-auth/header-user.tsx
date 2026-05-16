@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { authClient } from "#/lib/auth-client";
 
 export default function BetterAuthHeader() {
@@ -5,22 +6,28 @@ export default function BetterAuthHeader() {
 
 	if (isPending) {
 		return (
-			<div className="h-8 w-8 bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+			<div className="h-8 w-8 bg-neutral-100 dark:bg-neutral-800 animate-pulse rounded-full" />
 		);
 	}
 
 	if (session?.user) {
 		return (
 			<div className="flex items-center gap-2">
-				{session.user.image ? (
-					<img src={session.user.image} alt="" className="h-8 w-8" />
-				) : (
-					<div className="h-8 w-8 bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-						<span className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
-							{session.user.name?.charAt(0).toUpperCase() || "U"}
-						</span>
-					</div>
-				)}
+				<Link to="/profile" aria-label="プロフィールを編集">
+					{session.user.image ? (
+						<img
+							src={session.user.image}
+							alt=""
+							className="h-8 w-8 rounded-full object-cover hover:ring-2 hover:ring-ring transition-shadow"
+						/>
+					) : (
+						<div className="h-8 w-8 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center hover:ring-2 hover:ring-ring transition-shadow">
+							<span className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
+								{session.user.name?.charAt(0).toUpperCase() ?? "U"}
+							</span>
+						</div>
+					)}
+				</Link>
 				<button
 					type="button"
 					onClick={() => {

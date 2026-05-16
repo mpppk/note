@@ -1,6 +1,18 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useState } from "react";
+import { Button } from "#/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card";
+import { Checkbox } from "#/components/ui/checkbox";
+import { Input } from "#/components/ui/input";
+import { Label } from "#/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "#/components/ui/select";
 import { authClient } from "#/lib/auth-client";
 import { getSession } from "#/server/auth";
 import { listMembers } from "#/server/orgs";
@@ -61,7 +73,8 @@ function TodosPage() {
 					teamId,
 					title,
 					description: description || undefined,
-					assigneeId: assigneeId || undefined,
+					assigneeId:
+						assigneeId && assigneeId !== "unassigned" ? assigneeId : undefined,
 				},
 			}),
 		onSuccess: () => {
@@ -86,9 +99,15 @@ function TodosPage() {
 	return (
 		<main className="mx-auto max-w-2xl px-4 py-10">
 			<div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
-				<Link to="/orgs">Organizations</Link>
+				<Link to="/orgs" className="hover:text-foreground transition-colors">
+					Organizations
+				</Link>
 				<span>/</span>
-				<Link to="/org/$orgId" params={{ orgId }}>
+				<Link
+					to="/org/$orgId"
+					params={{ orgId }}
+					className="hover:text-foreground transition-colors"
+				>
 					{org?.name ?? orgId}
 				</Link>
 				<span>/</span>
@@ -105,31 +124,24 @@ function TodosPage() {
 					return (
 						<li
 							key={todo.id}
-							className="flex items-start gap-3 rounded-lg border px-4 py-3"
+							className="flex items-start gap-3 rounded-lg border border-border px-4 py-3"
 						>
-							{canEdit ? (
-								<input
-									type="checkbox"
-									checked={todo.done ?? false}
-									onChange={(e) =>
-										handleToggle({ todoId: todo.id, done: e.target.checked })
-									}
-									className="mt-1 h-4 w-4 shrink-0 cursor-pointer"
-								/>
-							) : (
-								<input
-									type="checkbox"
-									checked={todo.done ?? false}
-									readOnly
-									className="mt-1 h-4 w-4 shrink-0"
-								/>
-							)}
+							<Checkbox
+								id={`todo-${todo.id}`}
+								checked={todo.done ?? false}
+								onCheckedChange={(checked) =>
+									canEdit && handleToggle({ todoId: todo.id, done: !!checked })
+								}
+								disabled={!canEdit}
+								className="mt-0.5 shrink-0"
+							/>
 							<div className="flex-1 min-w-0">
-								<p
-									className={`font-medium ${todo.done ? "line-through text-muted-foreground" : ""}`}
+								<Label
+									htmlFor={`todo-${todo.id}`}
+									className={`font-medium cursor-pointer ${todo.done ? "line-through text-muted-foreground" : ""}`}
 								>
 									{todo.title}
-								</p>
+								</Label>
 								{todo.description && (
 									<p className="text-sm text-muted-foreground mt-0.5">
 										{todo.description}
@@ -142,13 +154,15 @@ function TodosPage() {
 								)}
 							</div>
 							{canEdit && (
-								<button
+								<Button
 									type="button"
+									variant="ghost"
+									size="sm"
 									onClick={() => handleDelete(todo.id)}
-									className="shrink-0 text-xs text-red-500 hover:text-red-700"
+									className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
 								>
 									Delete
-								</button>
+								</Button>
 							)}
 						</li>
 					);
@@ -159,48 +173,61 @@ function TodosPage() {
 			</ul>
 
 			{canEdit && (
-				<div className="rounded-lg border p-4">
-					<h2 className="mb-3 font-semibold">Add Todo</h2>
-					<div className="flex flex-col gap-2">
-						<input
-							type="text"
-							placeholder="Title *"
-							value={title}
-							onChange={(e) => setTitle(e.target.value)}
-							onKeyDown={(e) => {
-								if (e.key === "Enter" && title.trim()) handleCreate();
-							}}
-							className="rounded border px-3 py-2 text-sm"
-						/>
-						<input
-							type="text"
-							placeholder="Description (optional)"
-							value={description}
-							onChange={(e) => setDescription(e.target.value)}
-							className="rounded border px-3 py-2 text-sm"
-						/>
-						<select
-							value={assigneeId}
-							onChange={(e) => setAssigneeId(e.target.value)}
-							className="rounded border px-3 py-2 text-sm"
-						>
-							<option value="">No assignee</option>
-							{org?.members?.map((m) => (
-								<option key={m.userId} value={m.userId}>
-									{m.user.name}
-								</option>
-							))}
-						</select>
-						<button
-							type="button"
-							disabled={!title.trim() || creating}
-							onClick={() => handleCreate()}
-							className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-						>
-							Add
-						</button>
-					</div>
-				</div>
+				<Card>
+					<CardHeader>
+						<CardTitle>Add Todo</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<div className="flex flex-col gap-3">
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="todo-title">Title *</Label>
+								<Input
+									id="todo-title"
+									type="text"
+									placeholder="What needs to be done?"
+									value={title}
+									onChange={(e) => setTitle(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter" && title.trim()) handleCreate();
+									}}
+								/>
+							</div>
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="todo-description">Description</Label>
+								<Input
+									id="todo-description"
+									type="text"
+									placeholder="Optional details"
+									value={description}
+									onChange={(e) => setDescription(e.target.value)}
+								/>
+							</div>
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="todo-assignee">Assignee</Label>
+								<Select value={assigneeId} onValueChange={setAssigneeId}>
+									<SelectTrigger id="todo-assignee">
+										<SelectValue placeholder="No assignee" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="unassigned">No assignee</SelectItem>
+										{org?.members?.map((m) => (
+											<SelectItem key={m.userId} value={m.userId}>
+												{m.user.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+							<Button
+								type="button"
+								disabled={!title.trim() || creating}
+								onClick={() => handleCreate()}
+							>
+								Add
+							</Button>
+						</div>
+					</CardContent>
+				</Card>
 			)}
 		</main>
 	);

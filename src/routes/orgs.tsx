@@ -1,6 +1,10 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useState } from "react";
+import { Button } from "#/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card";
+import { Input } from "#/components/ui/input";
+import { Label } from "#/components/ui/label";
 import { getSession } from "#/server/auth";
 import { createOrg, listOrgs } from "#/server/orgs";
 
@@ -48,7 +52,7 @@ function OrgsPage() {
 						<Link
 							to="/org/$orgId"
 							params={{ orgId: org.id }}
-							className="block rounded-lg border px-4 py-3 hover:bg-muted transition-colors"
+							className="block rounded-lg border border-border px-4 py-3 transition-colors hover:bg-muted no-underline text-foreground"
 						>
 							{org.name}
 						</Link>
@@ -61,33 +65,42 @@ function OrgsPage() {
 				)}
 			</ul>
 
-			<div className="rounded-lg border p-4">
-				<h2 className="mb-3 font-semibold">Create Organization</h2>
-				<div className="flex flex-col gap-2">
-					<input
-						type="text"
-						placeholder="Name"
-						value={name}
-						onChange={(e) => setName(e.target.value)}
-						className="rounded border px-3 py-2 text-sm"
-					/>
-					<input
-						type="text"
-						placeholder="Slug (e.g. my-org)"
-						value={slug}
-						onChange={(e) => setSlug(e.target.value)}
-						className="rounded border px-3 py-2 text-sm"
-					/>
-					<button
-						type="button"
-						disabled={!name.trim() || !slug.trim() || isPending}
-						onClick={() => handleCreate()}
-						className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-					>
-						Create
-					</button>
-				</div>
-			</div>
+			<Card>
+				<CardHeader>
+					<CardTitle>Create Organization</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div className="flex flex-col gap-3">
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="org-name">Name</Label>
+							<Input
+								id="org-name"
+								type="text"
+								placeholder="My Organization"
+								value={name}
+								onChange={(e) => setName(e.target.value)}
+							/>
+						</div>
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="org-slug">Slug</Label>
+							<Input
+								id="org-slug"
+								type="text"
+								placeholder="my-org"
+								value={slug}
+								onChange={(e) => setSlug(e.target.value)}
+							/>
+						</div>
+						<Button
+							type="button"
+							disabled={!name.trim() || !slug.trim() || isPending}
+							onClick={() => handleCreate()}
+						>
+							Create
+						</Button>
+					</div>
+				</CardContent>
+			</Card>
 		</main>
 	);
 }

@@ -18,18 +18,19 @@ import { Label } from "#/components/ui/label";
 import { authClient } from "#/lib/auth-client";
 import { getSession } from "#/server/auth";
 
-export const Route = createFileRoute("/login")({
+export const Route = createFileRoute("/signup")({
 	beforeLoad: async () => {
 		const session = await getSession();
 		if (session) {
 			throw redirect({ to: "/orgs" });
 		}
 	},
-	component: LoginPage,
+	component: SignUpPage,
 });
 
-function LoginPage() {
+function SignUpPage() {
 	const router = useRouter();
+	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState("");
@@ -39,10 +40,10 @@ function LoginPage() {
 		e.preventDefault();
 		setError("");
 		setIsPending(true);
-		const result = await authClient.signIn.email({ email, password });
+		const result = await authClient.signUp.email({ name, email, password });
 		setIsPending(false);
 		if (result.error) {
-			setError(result.error.message ?? "Sign in failed");
+			setError(result.error.message ?? "Sign up failed");
 		} else {
 			await router.navigate({ to: "/orgs" });
 		}
@@ -52,10 +53,21 @@ function LoginPage() {
 		<main className="flex min-h-[calc(100vh-57px)] items-center justify-center px-4">
 			<Card className="w-full max-w-sm">
 				<CardHeader>
-					<CardTitle className="text-2xl">Sign in</CardTitle>
+					<CardTitle className="text-2xl">Create account</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<form onSubmit={handleSubmit} className="flex flex-col gap-4">
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="name">Name</Label>
+							<Input
+								id="name"
+								type="text"
+								placeholder="Your name"
+								value={name}
+								onChange={(e) => setName(e.target.value)}
+								required
+							/>
+						</div>
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="email">Email</Label>
 							<Input
@@ -80,15 +92,15 @@ function LoginPage() {
 						</div>
 						{error && <p className="text-sm text-destructive">{error}</p>}
 						<Button type="submit" disabled={isPending} className="w-full">
-							{isPending ? "Signing in..." : "Sign in"}
+							{isPending ? "Creating account..." : "Create account"}
 						</Button>
 					</form>
 				</CardContent>
 				<CardFooter className="justify-center">
 					<p className="text-center text-sm text-muted-foreground">
-						Don't have an account?{" "}
-						<Link to="/signup" className="text-primary hover:underline">
-							Sign up
+						Already have an account?{" "}
+						<Link to="/login" className="text-primary hover:underline">
+							Sign in
 						</Link>
 					</p>
 				</CardFooter>
