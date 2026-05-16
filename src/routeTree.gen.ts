@@ -10,16 +10,24 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OrgsRouteImport } from './routes/orgs'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiUploadRouteImport } from './routes/api/upload'
 import { Route as OrgOrgIdIndexRouteImport } from './routes/org/$orgId/index'
+import { Route as ApiImagesSplatRouteImport } from './routes/api/images/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as OrgOrgIdTeamTeamIdTodosRouteImport } from './routes/org/$orgId/team/$teamId/todos'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrgsRoute = OrgsRouteImport.update({
@@ -37,9 +45,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiUploadRoute = ApiUploadRouteImport.update({
+  id: '/api/upload',
+  path: '/api/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrgOrgIdIndexRoute = OrgOrgIdIndexRouteImport.update({
   id: '/org/$orgId/',
   path: '/org/$orgId/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiImagesSplatRoute = ApiImagesSplatRouteImport.update({
+  id: '/api/images/$',
+  path: '/api/images/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -57,8 +75,11 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/orgs': typeof OrgsRoute
+  '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
+  '/api/upload': typeof ApiUploadRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/images/$': typeof ApiImagesSplatRoute
   '/org/$orgId/': typeof OrgOrgIdIndexRoute
   '/org/$orgId/team/$teamId/todos': typeof OrgOrgIdTeamTeamIdTodosRoute
 }
@@ -66,8 +87,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/orgs': typeof OrgsRoute
+  '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
+  '/api/upload': typeof ApiUploadRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/images/$': typeof ApiImagesSplatRoute
   '/org/$orgId': typeof OrgOrgIdIndexRoute
   '/org/$orgId/team/$teamId/todos': typeof OrgOrgIdTeamTeamIdTodosRoute
 }
@@ -76,8 +100,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/orgs': typeof OrgsRoute
+  '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
+  '/api/upload': typeof ApiUploadRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/images/$': typeof ApiImagesSplatRoute
   '/org/$orgId/': typeof OrgOrgIdIndexRoute
   '/org/$orgId/team/$teamId/todos': typeof OrgOrgIdTeamTeamIdTodosRoute
 }
@@ -87,8 +114,11 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/orgs'
+    | '/profile'
     | '/signup'
+    | '/api/upload'
     | '/api/auth/$'
+    | '/api/images/$'
     | '/org/$orgId/'
     | '/org/$orgId/team/$teamId/todos'
   fileRoutesByTo: FileRoutesByTo
@@ -96,8 +126,11 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/orgs'
+    | '/profile'
     | '/signup'
+    | '/api/upload'
     | '/api/auth/$'
+    | '/api/images/$'
     | '/org/$orgId'
     | '/org/$orgId/team/$teamId/todos'
   id:
@@ -105,8 +138,11 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/orgs'
+    | '/profile'
     | '/signup'
+    | '/api/upload'
     | '/api/auth/$'
+    | '/api/images/$'
     | '/org/$orgId/'
     | '/org/$orgId/team/$teamId/todos'
   fileRoutesById: FileRoutesById
@@ -115,8 +151,11 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
   OrgsRoute: typeof OrgsRoute
+  ProfileRoute: typeof ProfileRoute
   SignupRoute: typeof SignupRoute
+  ApiUploadRoute: typeof ApiUploadRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiImagesSplatRoute: typeof ApiImagesSplatRoute
   OrgOrgIdIndexRoute: typeof OrgOrgIdIndexRoute
   OrgOrgIdTeamTeamIdTodosRoute: typeof OrgOrgIdTeamTeamIdTodosRoute
 }
@@ -128,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/orgs': {
@@ -151,11 +197,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/upload': {
+      id: '/api/upload'
+      path: '/api/upload'
+      fullPath: '/api/upload'
+      preLoaderRoute: typeof ApiUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/org/$orgId/': {
       id: '/org/$orgId/'
       path: '/org/$orgId'
       fullPath: '/org/$orgId/'
       preLoaderRoute: typeof OrgOrgIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/images/$': {
+      id: '/api/images/$'
+      path: '/api/images/$'
+      fullPath: '/api/images/$'
+      preLoaderRoute: typeof ApiImagesSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
@@ -179,8 +239,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   OrgsRoute: OrgsRoute,
+  ProfileRoute: ProfileRoute,
   SignupRoute: SignupRoute,
+  ApiUploadRoute: ApiUploadRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiImagesSplatRoute: ApiImagesSplatRoute,
   OrgOrgIdIndexRoute: OrgOrgIdIndexRoute,
   OrgOrgIdTeamTeamIdTodosRoute: OrgOrgIdTeamTeamIdTodosRoute,
 }

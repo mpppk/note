@@ -23,6 +23,12 @@
 			"migrations_dir": "drizzle"
 		}
 	],
+	"r2_buckets": [
+		{
+			"binding": "AVATARS",
+			"bucket_name": "avatars-todo-app2026"
+		}
+	],
 	"env": {
 		"preview": {
 			"name": "todo-app2026-preview",
@@ -32,6 +38,12 @@
 					"database_name": "todo-app2026-preview-db",
 					"database_id": "8163d76b-1c2e-48ce-b98b-b72d71191b6c",
 					"migrations_dir": "drizzle"
+				}
+			],
+			"r2_buckets": [
+				{
+					"binding": "AVATARS",
+					"bucket_name": "avatars-todo-app2026-preview"
 				}
 			]
 		}
