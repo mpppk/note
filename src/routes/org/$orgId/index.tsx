@@ -1,6 +1,17 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useState } from "react";
+import { Button } from "#/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card";
+import { Input } from "#/components/ui/input";
+import { Label } from "#/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "#/components/ui/select";
 import { getSession } from "#/server/auth";
 import {
 	createTeam,
@@ -70,7 +81,9 @@ function OrgPage() {
 	return (
 		<main className="mx-auto max-w-2xl px-4 py-10">
 			<div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
-				<Link to="/orgs">Organizations</Link>
+				<Link to="/orgs" className="hover:text-foreground transition-colors">
+					Organizations
+				</Link>
 				<span>/</span>
 				<span className="font-medium text-foreground">
 					{org?.name ?? orgId}
@@ -85,7 +98,7 @@ function OrgPage() {
 						<Link
 							to="/org/$orgId/team/$teamId/todos"
 							params={{ orgId, teamId: team.id }}
-							className="block rounded-lg border px-4 py-3 hover:bg-muted transition-colors"
+							className="block rounded-lg border border-border px-4 py-3 transition-colors hover:bg-muted no-underline text-foreground"
 						>
 							{team.name}
 						</Link>
@@ -96,69 +109,88 @@ function OrgPage() {
 				)}
 			</ul>
 
-			<div className="mb-8 rounded-lg border p-4">
-				<h2 className="mb-3 font-semibold">Create Team</h2>
-				<div className="flex gap-2">
-					<input
-						type="text"
-						placeholder="Team name"
-						value={teamName}
-						onChange={(e) => setTeamName(e.target.value)}
-						className="flex-1 rounded border px-3 py-2 text-sm"
-					/>
-					<button
-						type="button"
-						disabled={!teamName.trim() || creatingTeam}
-						onClick={() => handleCreateTeam()}
-						className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-					>
-						Create
-					</button>
-				</div>
-			</div>
+			<Card className="mb-8">
+				<CardHeader>
+					<CardTitle>Create Team</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div className="flex gap-2">
+						<Input
+							type="text"
+							placeholder="Team name"
+							value={teamName}
+							onChange={(e) => setTeamName(e.target.value)}
+							className="flex-1"
+						/>
+						<Button
+							type="button"
+							disabled={!teamName.trim() || creatingTeam}
+							onClick={() => handleCreateTeam()}
+						>
+							Create
+						</Button>
+					</div>
+				</CardContent>
+			</Card>
 
-			<div className="rounded-lg border p-4">
-				<h2 className="mb-3 font-semibold">Members</h2>
-				<ul className="mb-4 space-y-1 text-sm">
-					{org?.members?.map((m) => (
-						<li key={m.id} className="flex justify-between">
-							<span>
-								{m.user.name} ({m.user.email})
-							</span>
-							<span className="text-muted-foreground">{m.role}</span>
-						</li>
-					))}
-				</ul>
-				<h3 className="mb-2 text-sm font-medium">Invite Member</h3>
-				<div className="flex flex-col gap-2">
-					<input
-						type="email"
-						placeholder="Email"
-						value={inviteEmail}
-						onChange={(e) => setInviteEmail(e.target.value)}
-						className="rounded border px-3 py-2 text-sm"
-					/>
-					<select
-						value={inviteRole}
-						onChange={(e) =>
-							setInviteRole(e.target.value as "member" | "admin" | "owner")
-						}
-						className="rounded border px-3 py-2 text-sm"
-					>
-						<option value="member">Member</option>
-						<option value="admin">Admin</option>
-						<option value="owner">Owner</option>
-					</select>
-					<button
-						type="button"
-						disabled={!inviteEmail.trim() || inviting}
-						onClick={() => handleInvite()}
-						className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-					>
-						Send Invite
-					</button>
-				</div>
-			</div>
+			<Card>
+				<CardHeader>
+					<CardTitle>Members</CardTitle>
+				</CardHeader>
+				<CardContent className="flex flex-col gap-4">
+					<ul className="space-y-1 text-sm">
+						{org?.members?.map((m) => (
+							<li key={m.id} className="flex justify-between">
+								<span>
+									{m.user.name} ({m.user.email})
+								</span>
+								<span className="text-muted-foreground">{m.role}</span>
+							</li>
+						))}
+					</ul>
+
+					<div className="border-t border-border pt-4">
+						<p className="mb-3 text-sm font-medium">Invite Member</p>
+						<div className="flex flex-col gap-2">
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="invite-email">Email</Label>
+								<Input
+									id="invite-email"
+									type="email"
+									placeholder="colleague@example.com"
+									value={inviteEmail}
+									onChange={(e) => setInviteEmail(e.target.value)}
+								/>
+							</div>
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="invite-role">Role</Label>
+								<Select
+									value={inviteRole}
+									onValueChange={(v) =>
+										setInviteRole(v as "member" | "admin" | "owner")
+									}
+								>
+									<SelectTrigger id="invite-role">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="member">Member</SelectItem>
+										<SelectItem value="admin">Admin</SelectItem>
+										<SelectItem value="owner">Owner</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+							<Button
+								type="button"
+								disabled={!inviteEmail.trim() || inviting}
+								onClick={() => handleInvite()}
+							>
+								Send Invite
+							</Button>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
 		</main>
 	);
 }

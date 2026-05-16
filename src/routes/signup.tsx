@@ -5,6 +5,16 @@ import {
 	useRouter,
 } from "@tanstack/react-router";
 import { useState } from "react";
+import { Button } from "#/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "#/components/ui/card";
+import { Input } from "#/components/ui/input";
+import { Label } from "#/components/ui/label";
 import { authClient } from "#/lib/auth-client";
 import { getSession } from "#/server/auth";
 
@@ -40,48 +50,61 @@ function SignUpPage() {
 	};
 
 	return (
-		<main className="mx-auto max-w-sm px-4 py-20">
-			<h1 className="mb-6 text-2xl font-bold">Create account</h1>
-			<form onSubmit={handleSubmit} className="flex flex-col gap-4">
-				<input
-					type="text"
-					placeholder="Name"
-					value={name}
-					onChange={(e) => setName(e.target.value)}
-					required
-					className="rounded border px-3 py-2 text-sm"
-				/>
-				<input
-					type="email"
-					placeholder="Email"
-					value={email}
-					onChange={(e) => setEmail(e.target.value)}
-					required
-					className="rounded border px-3 py-2 text-sm"
-				/>
-				<input
-					type="password"
-					placeholder="Password"
-					value={password}
-					onChange={(e) => setPassword(e.target.value)}
-					required
-					className="rounded border px-3 py-2 text-sm"
-				/>
-				{error && <p className="text-sm text-red-500">{error}</p>}
-				<button
-					type="submit"
-					disabled={isPending}
-					className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-				>
-					{isPending ? "Creating account..." : "Create account"}
-				</button>
-			</form>
-			<p className="mt-4 text-center text-sm text-gray-500">
-				Already have an account?{" "}
-				<Link to="/login" className="text-blue-600 hover:underline">
-					Sign in
-				</Link>
-			</p>
+		<main className="flex min-h-[calc(100vh-57px)] items-center justify-center px-4">
+			<Card className="w-full max-w-sm">
+				<CardHeader>
+					<CardTitle className="text-2xl">Create account</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<form onSubmit={handleSubmit} className="flex flex-col gap-4">
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="name">Name</Label>
+							<Input
+								id="name"
+								type="text"
+								placeholder="Your name"
+								value={name}
+								onChange={(e) => setName(e.target.value)}
+								required
+							/>
+						</div>
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="email">Email</Label>
+							<Input
+								id="email"
+								type="email"
+								placeholder="you@example.com"
+								value={email}
+								onChange={(e) => setEmail(e.target.value)}
+								required
+							/>
+						</div>
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="password">Password</Label>
+							<Input
+								id="password"
+								type="password"
+								placeholder="••••••••"
+								value={password}
+								onChange={(e) => setPassword(e.target.value)}
+								required
+							/>
+						</div>
+						{error && <p className="text-sm text-destructive">{error}</p>}
+						<Button type="submit" disabled={isPending} className="w-full">
+							{isPending ? "Creating account..." : "Create account"}
+						</Button>
+					</form>
+				</CardContent>
+				<CardFooter className="justify-center">
+					<p className="text-center text-sm text-muted-foreground">
+						Already have an account?{" "}
+						<Link to="/login" className="text-primary hover:underline">
+							Sign in
+						</Link>
+					</p>
+				</CardFooter>
+			</Card>
 		</main>
 	);
 }
