@@ -20,6 +20,9 @@ export const auth = betterAuth({
 		organization({
 			teams: {
 				enabled: true,
+				defaultTeam: {
+					enabled: false,
+				},
 			},
 			sendInvitationEmail: async (_data) => {
 				// TODO: implement email sending
