@@ -111,6 +111,14 @@ function TodosPage() {
 					{org?.name ?? orgId}
 				</Link>
 				<span>/</span>
+				<Link
+					to="/org/$orgId/team/$teamId"
+					params={{ orgId, teamId }}
+					className="hover:text-foreground transition-colors"
+				>
+					Team
+				</Link>
+				<span>/</span>
 				<span className="font-medium text-foreground">Todos</span>
 			</div>
 
