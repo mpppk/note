@@ -10,7 +10,7 @@ export default function Header() {
 					to="/orgs"
 					className="flex-shrink-0 text-sm font-semibold text-foreground no-underline transition-colors hover:text-foreground/80"
 				>
-					TODO App
+					niboshi-note
 				</Link>
 
 				<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-semibold">
