@@ -10,7 +10,7 @@ import { getSession } from "#/server/auth";
 import { createBlock, listBlocks } from "#/server/notes";
 import { listMembers } from "#/server/orgs";
 
-export const Route = createFileRoute("/org/$orgId/team/$teamId/blocks")({
+export const Route = createFileRoute("/org/$orgId/team/$teamId/blocks/")({
 	beforeLoad: async () => {
 		const session = await getSession();
 		if (!session) throw redirect({ to: "/login" });
