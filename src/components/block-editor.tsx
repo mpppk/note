@@ -70,7 +70,7 @@ export function InlineBlockEditor({
 		<button
 			type="button"
 			onClick={() => setEditing(true)}
-			className="block w-full text-left rounded-md border border-transparent hover:border-border hover:bg-muted/40 px-2 py-1 -mx-2 cursor-text"
+			className="block w-full text-left rounded-sm px-2 py-1 -mx-2 cursor-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
 			aria-label="Edit block"
 		>
 			{body.trim() ? (

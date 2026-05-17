@@ -278,7 +278,7 @@ function PageDetailPage() {
 								items={orderedIds}
 								strategy={verticalListSortingStrategy}
 							>
-								<ul className="space-y-3">
+								<ul className="space-y-0">
 									{orderedIds.map((bid) => {
 										const b = blocksById.get(bid);
 										if (!b) return null;
@@ -364,13 +364,13 @@ function SortableBlock({
 		<li
 			ref={setNodeRef}
 			style={style}
-			className="rounded-lg border border-border bg-card"
+			className="group relative rounded-md transition-colors hover:bg-muted/50 focus-within:bg-muted/30"
 		>
-			<div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+			<div className="flex items-center justify-between gap-2 px-3 pt-2 pb-0.5">
 				<div className="flex items-center gap-2 min-w-0 flex-1">
 					<button
 						type="button"
-						className="cursor-grab text-muted-foreground hover:text-foreground select-none touch-none"
+						className="cursor-grab text-muted-foreground hover:text-foreground select-none touch-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
 						aria-label="Drag to reorder"
 						{...attributes}
 						{...listeners}
@@ -380,17 +380,17 @@ function SortableBlock({
 					<Link
 						to="/org/$orgId/team/$teamId/blocks/$blockId"
 						params={{ orgId, teamId, blockId }}
-						className="font-medium truncate hover:underline"
+						className="text-sm font-medium truncate text-muted-foreground group-hover:text-foreground transition-colors hover:underline"
 					>
 						{title}
 					</Link>
 					{aliases.length > 0 && (
-						<span className="text-xs text-muted-foreground truncate">
+						<span className="text-xs text-muted-foreground/60 group-hover:text-muted-foreground truncate transition-colors">
 							({aliases.join(", ")})
 						</span>
 					)}
 				</div>
-				<div className="flex items-center gap-1 shrink-0">
+				<div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
 					<Button
 						type="button"
 						variant="ghost"
@@ -411,7 +411,7 @@ function SortableBlock({
 					</Button>
 				</div>
 			</div>
-			<div className="px-3 py-2">
+			<div className="px-3 pb-2 pt-0.5">
 				<InlineBlockEditor
 					body={body}
 					onSave={onSave}
