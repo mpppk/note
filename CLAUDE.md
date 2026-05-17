@@ -17,7 +17,7 @@
 
 # 環境
 ## 本番環境
-* URL: https://[TBW].niboshi.workers.dev
+* URL: https://note.niboshi.workers.dev
 
 ## プレビュー環境
 プレビュー環境はPR作成後に自動で立ち上がります。URLはPRのコメントに記載されます。
