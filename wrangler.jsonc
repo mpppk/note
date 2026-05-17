@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "todo-app2026",
+	"name": "note",
 	"compatibility_date": "2025-09-02",
 	"compatibility_flags": [
 		"nodejs_compat"
@@ -18,32 +18,32 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "todo-app2026-db",
-			"database_id": "d34fe9df-9073-4a27-884b-b90195c851bc",
+			"database_name": "note-db",
+			"database_id": "b5ee422f-2a2d-4d35-85f5-691cbbee2358",
 			"migrations_dir": "drizzle"
 		}
 	],
 	"r2_buckets": [
 		{
 			"binding": "AVATARS",
-			"bucket_name": "avatars-todo-app2026"
+			"bucket_name": "avatars-note"
 		}
 	],
 	"env": {
 		"preview": {
-			"name": "todo-app2026-preview",
+			"name": "note-preview",
 			"d1_databases": [
 				{
 					"binding": "DB",
-					"database_name": "todo-app2026-preview-db",
-					"database_id": "8163d76b-1c2e-48ce-b98b-b72d71191b6c",
+					"database_name": "note-preview-db",
+					"database_id": "849d902b-c6bf-4e34-96b3-4ad73b022d32",
 					"migrations_dir": "drizzle"
 				}
 			],
 			"r2_buckets": [
 				{
 					"binding": "AVATARS",
-					"bucket_name": "avatars-todo-app2026-preview"
+					"bucket_name": "avatars-note-preview"
 				}
 			]
 		}
