@@ -47,21 +47,7 @@ function TeamHome() {
 
 			<h1 className="mb-6 text-2xl font-bold">Team</h1>
 
-			<div className="grid gap-4 sm:grid-cols-3">
-				<Link
-					to="/org/$orgId/team/$teamId/todos"
-					params={{ orgId, teamId }}
-					className="no-underline text-foreground"
-				>
-					<Card className="h-full transition-colors hover:bg-muted">
-						<CardHeader>
-							<CardTitle>Todos</CardTitle>
-						</CardHeader>
-						<CardContent className="text-sm text-muted-foreground">
-							タスクを管理
-						</CardContent>
-					</Card>
-				</Link>
+			<div className="grid gap-4 sm:grid-cols-2">
 				<Link
 					to="/org/$orgId/team/$teamId/pages"
 					params={{ orgId, teamId }}
