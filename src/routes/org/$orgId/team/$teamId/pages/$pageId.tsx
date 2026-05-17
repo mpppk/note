@@ -71,7 +71,18 @@ export const Route = createFileRoute("/org/$orgId/team/$teamId/pages/$pageId")({
 				queryFn: () => listMembers({ data: { orgId: params.orgId } }),
 			}),
 		]);
+		const page = context.queryClient.getQueryData<{ titles: string[] }>(["page", params.pageId]);
+		return { pageTitle: page?.titles?.[0] ?? null };
 	},
+	head: ({ loaderData }) => ({
+		meta: [
+			{
+				title: loaderData?.pageTitle
+					? `${loaderData.pageTitle} | niboshi-note`
+					: "niboshi-note",
+			},
+		],
+	}),
 	component: PageDetailPage,
 });
 
