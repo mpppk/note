@@ -20,7 +20,6 @@ import { Route as OrgOrgIdIndexRouteImport } from './routes/org/$orgId/index'
 import { Route as ApiImagesSplatRouteImport } from './routes/api/images/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as OrgOrgIdTeamTeamIdIndexRouteImport } from './routes/org/$orgId/team/$teamId/index'
-import { Route as OrgOrgIdTeamTeamIdTodosRouteImport } from './routes/org/$orgId/team/$teamId/todos'
 import { Route as OrgOrgIdTeamTeamIdPagesIndexRouteImport } from './routes/org/$orgId/team/$teamId/pages/index'
 import { Route as OrgOrgIdTeamTeamIdBlocksIndexRouteImport } from './routes/org/$orgId/team/$teamId/blocks/index'
 import { Route as OrgOrgIdTeamTeamIdPagesPageIdRouteImport } from './routes/org/$orgId/team/$teamId/pages/$pageId'
@@ -81,11 +80,6 @@ const OrgOrgIdTeamTeamIdIndexRoute = OrgOrgIdTeamTeamIdIndexRouteImport.update({
   path: '/org/$orgId/team/$teamId/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OrgOrgIdTeamTeamIdTodosRoute = OrgOrgIdTeamTeamIdTodosRouteImport.update({
-  id: '/org/$orgId/team/$teamId/todos',
-  path: '/org/$orgId/team/$teamId/todos',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const OrgOrgIdTeamTeamIdPagesIndexRoute =
   OrgOrgIdTeamTeamIdPagesIndexRouteImport.update({
     id: '/org/$orgId/team/$teamId/pages/',
@@ -122,7 +116,6 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/images/$': typeof ApiImagesSplatRoute
   '/org/$orgId/': typeof OrgOrgIdIndexRoute
-  '/org/$orgId/team/$teamId/todos': typeof OrgOrgIdTeamTeamIdTodosRoute
   '/org/$orgId/team/$teamId/': typeof OrgOrgIdTeamTeamIdIndexRoute
   '/org/$orgId/team/$teamId/blocks/$blockId': typeof OrgOrgIdTeamTeamIdBlocksBlockIdRoute
   '/org/$orgId/team/$teamId/pages/$pageId': typeof OrgOrgIdTeamTeamIdPagesPageIdRoute
@@ -140,7 +133,6 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/images/$': typeof ApiImagesSplatRoute
   '/org/$orgId': typeof OrgOrgIdIndexRoute
-  '/org/$orgId/team/$teamId/todos': typeof OrgOrgIdTeamTeamIdTodosRoute
   '/org/$orgId/team/$teamId': typeof OrgOrgIdTeamTeamIdIndexRoute
   '/org/$orgId/team/$teamId/blocks/$blockId': typeof OrgOrgIdTeamTeamIdBlocksBlockIdRoute
   '/org/$orgId/team/$teamId/pages/$pageId': typeof OrgOrgIdTeamTeamIdPagesPageIdRoute
@@ -159,7 +151,6 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/images/$': typeof ApiImagesSplatRoute
   '/org/$orgId/': typeof OrgOrgIdIndexRoute
-  '/org/$orgId/team/$teamId/todos': typeof OrgOrgIdTeamTeamIdTodosRoute
   '/org/$orgId/team/$teamId/': typeof OrgOrgIdTeamTeamIdIndexRoute
   '/org/$orgId/team/$teamId/blocks/$blockId': typeof OrgOrgIdTeamTeamIdBlocksBlockIdRoute
   '/org/$orgId/team/$teamId/pages/$pageId': typeof OrgOrgIdTeamTeamIdPagesPageIdRoute
@@ -179,7 +170,6 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/images/$'
     | '/org/$orgId/'
-    | '/org/$orgId/team/$teamId/todos'
     | '/org/$orgId/team/$teamId/'
     | '/org/$orgId/team/$teamId/blocks/$blockId'
     | '/org/$orgId/team/$teamId/pages/$pageId'
@@ -197,7 +187,6 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/images/$'
     | '/org/$orgId'
-    | '/org/$orgId/team/$teamId/todos'
     | '/org/$orgId/team/$teamId'
     | '/org/$orgId/team/$teamId/blocks/$blockId'
     | '/org/$orgId/team/$teamId/pages/$pageId'
@@ -215,7 +204,6 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/images/$'
     | '/org/$orgId/'
-    | '/org/$orgId/team/$teamId/todos'
     | '/org/$orgId/team/$teamId/'
     | '/org/$orgId/team/$teamId/blocks/$blockId'
     | '/org/$orgId/team/$teamId/pages/$pageId'
@@ -234,7 +222,6 @@ export interface RootRouteChildren {
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiImagesSplatRoute: typeof ApiImagesSplatRoute
   OrgOrgIdIndexRoute: typeof OrgOrgIdIndexRoute
-  OrgOrgIdTeamTeamIdTodosRoute: typeof OrgOrgIdTeamTeamIdTodosRoute
   OrgOrgIdTeamTeamIdIndexRoute: typeof OrgOrgIdTeamTeamIdIndexRoute
   OrgOrgIdTeamTeamIdBlocksBlockIdRoute: typeof OrgOrgIdTeamTeamIdBlocksBlockIdRoute
   OrgOrgIdTeamTeamIdPagesPageIdRoute: typeof OrgOrgIdTeamTeamIdPagesPageIdRoute
@@ -321,13 +308,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgOrgIdTeamTeamIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/org/$orgId/team/$teamId/todos': {
-      id: '/org/$orgId/team/$teamId/todos'
-      path: '/org/$orgId/team/$teamId/todos'
-      fullPath: '/org/$orgId/team/$teamId/todos'
-      preLoaderRoute: typeof OrgOrgIdTeamTeamIdTodosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/org/$orgId/team/$teamId/pages/': {
       id: '/org/$orgId/team/$teamId/pages/'
       path: '/org/$orgId/team/$teamId/pages'
@@ -370,7 +350,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiImagesSplatRoute: ApiImagesSplatRoute,
   OrgOrgIdIndexRoute: OrgOrgIdIndexRoute,
-  OrgOrgIdTeamTeamIdTodosRoute: OrgOrgIdTeamTeamIdTodosRoute,
   OrgOrgIdTeamTeamIdIndexRoute: OrgOrgIdTeamTeamIdIndexRoute,
   OrgOrgIdTeamTeamIdBlocksBlockIdRoute: OrgOrgIdTeamTeamIdBlocksBlockIdRoute,
   OrgOrgIdTeamTeamIdPagesPageIdRoute: OrgOrgIdTeamTeamIdPagesPageIdRoute,
