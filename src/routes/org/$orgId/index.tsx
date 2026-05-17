@@ -103,7 +103,7 @@ function OrgPage() {
 				{teams?.map((team) => (
 					<li key={team.id}>
 						<Link
-							to="/org/$orgId/team/$teamId/todos"
+							to="/org/$orgId/team/$teamId"
 							params={{ orgId, teamId: team.id }}
 							className="block rounded-lg border border-border px-4 py-3 transition-colors hover:bg-muted no-underline text-foreground"
 						>
