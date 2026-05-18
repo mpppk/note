@@ -72,7 +72,10 @@ export default function BetterAuthHeader() {
 					aria-label="アカウントメニュー"
 					className="h-8 w-8 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center hover:ring-2 hover:ring-ring transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 				>
-					<UserIcon className="size-4 text-neutral-500 dark:text-neutral-400" aria-hidden />
+					<UserIcon
+						className="size-4 text-neutral-500 dark:text-neutral-400"
+						aria-hidden
+					/>
 				</button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
