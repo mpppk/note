@@ -22,7 +22,7 @@ import {
 	redirect,
 	useNavigate,
 } from "@tanstack/react-router";
-import { InfoIcon } from "lucide-react";
+import { InfoIcon, MoreHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { InlineBlockEditor } from "#/components/block-editor";
 import { TitleManager } from "#/components/title-manager";
@@ -34,6 +34,13 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "#/components/ui/dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "#/components/ui/dropdown-menu";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import { Textarea } from "#/components/ui/textarea";
@@ -117,6 +124,7 @@ function PageDetailPage() {
 	});
 
 	const [orderedIds, setOrderedIds] = useState<string[] | null>(null);
+	const [titleDialogOpen, setTitleDialogOpen] = useState(false);
 
 	useEffect(() => {
 		if (page) setOrderedIds(page.blocks.map((b) => b.id));
@@ -265,38 +273,54 @@ function PageDetailPage() {
 				</span>
 			</div>
 
-			<div className="mb-4 flex items-start justify-between gap-4">
+			<div className="mb-4 flex items-center justify-between gap-4">
 				<h1 className="text-2xl font-bold">{page.titles[0] ?? "(no title)"}</h1>
-				<Button
-					variant="ghost"
-					size="sm"
-					className="text-destructive hover:text-destructive hover:bg-destructive/10"
-					onClick={() => {
-						if (
-							confirm(
-								"Delete this page? Its blocks will remain but page links will be removed.",
-							)
-						) {
-							handleDeletePage.mutate();
-						}
-					}}
-				>
-					Delete Page
-				</Button>
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8 text-muted-foreground"
+							aria-label="Page options"
+						>
+							<MoreHorizontal className="h-4 w-4" />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end">
+						<DropdownMenuItem onSelect={() => setTitleDialogOpen(true)}>
+							タイトルを編集
+						</DropdownMenuItem>
+						<DropdownMenuSeparator />
+						<DropdownMenuItem
+							className="text-destructive focus:text-destructive focus:bg-destructive/10"
+							onSelect={() => {
+								if (
+									confirm(
+										"Delete this page? Its blocks will remain but page links will be removed.",
+									)
+								) {
+									handleDeletePage.mutate();
+								}
+							}}
+						>
+							ページを削除
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</div>
 
-			<Card className="mb-6">
-				<CardHeader>
-					<CardTitle className="text-base">Titles</CardTitle>
-				</CardHeader>
-				<CardContent>
+			<Dialog open={titleDialogOpen} onOpenChange={setTitleDialogOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>タイトルを編集</DialogTitle>
+					</DialogHeader>
 					<TitleManager
 						titles={page.titles}
 						onAdd={handleAddTitle}
 						onRemove={handleRemoveTitle}
 					/>
-				</CardContent>
-			</Card>
+				</DialogContent>
+			</Dialog>
 
 			<Card className="mb-6">
 				<CardHeader>
