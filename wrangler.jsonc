@@ -32,6 +32,7 @@
 	"env": {
 		"preview": {
 			"name": "note-preview",
+			"preview_urls": true,
 			"d1_databases": [
 				{
 					"binding": "DB",
