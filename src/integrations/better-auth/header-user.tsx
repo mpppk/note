@@ -1,6 +1,5 @@
 import { useRouter } from "@tanstack/react-router";
 import { UserIcon } from "lucide-react";
-import { authClient } from "#/lib/auth-client";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -8,6 +7,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "#/components/ui/dropdown-menu";
+import { authClient } from "#/lib/auth-client";
 
 export default function BetterAuthHeader() {
 	const { data: session, isPending } = authClient.useSession();
