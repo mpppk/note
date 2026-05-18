@@ -291,7 +291,7 @@ function PageDetailPage() {
 							タイトルを編集
 						</DropdownMenuItem>
 						<DropdownMenuItem onSelect={() => setAddBlockDialogOpen(true)}>
-							Blockを追加
+							セクション追加
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
@@ -333,51 +333,45 @@ function PageDetailPage() {
 				pageId={pageId}
 			/>
 
-			<div className="mb-6">
-				{orderedIds.length === 0 ? (
-					<p className="text-sm text-muted-foreground">
-						まだBlockがありません。
-					</p>
-				) : (
-					<DndContext
-						sensors={sensors}
-						collisionDetection={closestCenter}
-						onDragEnd={handleDragEnd}
+			{orderedIds.length > 0 && (
+				<DndContext
+					sensors={sensors}
+					collisionDetection={closestCenter}
+					onDragEnd={handleDragEnd}
+				>
+					<SortableContext
+						items={orderedIds}
+						strategy={verticalListSortingStrategy}
 					>
-						<SortableContext
-							items={orderedIds}
-							strategy={verticalListSortingStrategy}
-						>
-							<ul className="space-y-0">
-								{orderedIds.map((bid) => {
-									const b = blocksById.get(bid);
-									if (!b) return null;
-									return (
-										<SortableBlock
-											key={b.id}
-											blockId={b.id}
-											blockTitles={b.titles}
-											body={b.body}
-											orgId={orgId}
-											teamId={teamId}
-											titles={teamTitles ?? []}
-											onSave={(body) =>
-												updateBody.mutateAsync({ blockId: b.id, body })
-											}
-											onUnlink={() => unlink.mutate(b.id)}
-											onDelete={() => deleteB.mutate(b.id)}
-											onAddTitle={(title) => handleAddBlockTitle(b.id, title)}
-											onRemoveTitle={(title) =>
-												handleRemoveBlockTitle(b.id, title)
-											}
-										/>
-									);
-								})}
-							</ul>
-						</SortableContext>
-					</DndContext>
-				)}
-			</div>
+						<ul className="space-y-0">
+							{orderedIds.map((bid) => {
+								const b = blocksById.get(bid);
+								if (!b) return null;
+								return (
+									<SortableBlock
+										key={b.id}
+										blockId={b.id}
+										blockTitles={b.titles}
+										body={b.body}
+										orgId={orgId}
+										teamId={teamId}
+										titles={teamTitles ?? []}
+										onSave={(body) =>
+											updateBody.mutateAsync({ blockId: b.id, body })
+										}
+										onUnlink={() => unlink.mutate(b.id)}
+										onDelete={() => deleteB.mutate(b.id)}
+										onAddTitle={(title) => handleAddBlockTitle(b.id, title)}
+										onRemoveTitle={(title) =>
+											handleRemoveBlockTitle(b.id, title)
+										}
+									/>
+								);
+							})}
+						</ul>
+					</SortableContext>
+				</DndContext>
+			)}
 		</main>
 	);
 }
@@ -597,7 +591,7 @@ function AddBlockDialog({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Blockを追加</DialogTitle>
+					<DialogTitle>セクション追加</DialogTitle>
 				</DialogHeader>
 				<div className="flex flex-col gap-3">
 					<div className="flex gap-2 text-sm">
