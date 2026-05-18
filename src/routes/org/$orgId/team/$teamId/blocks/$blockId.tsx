@@ -49,7 +49,10 @@ export const Route = createFileRoute(
 				queryFn: () => listMembers({ data: { orgId: params.orgId } }),
 			}),
 		]);
-		const block = context.queryClient.getQueryData<{ titles: string[] }>(["block", params.blockId]);
+		const block = context.queryClient.getQueryData<{ titles: string[] }>([
+			"block",
+			params.blockId,
+		]);
 		return { blockTitle: block?.titles?.[0] ?? null };
 	},
 	head: ({ loaderData }) => ({
