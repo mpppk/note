@@ -27,7 +27,6 @@ import { useEffect, useMemo, useState } from "react";
 import { InlineBlockEditor } from "#/components/block-editor";
 import { TitleManager } from "#/components/title-manager";
 import { Button } from "#/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -125,6 +124,7 @@ function PageDetailPage() {
 
 	const [orderedIds, setOrderedIds] = useState<string[] | null>(null);
 	const [titleDialogOpen, setTitleDialogOpen] = useState(false);
+	const [addBlockDialogOpen, setAddBlockDialogOpen] = useState(false);
 
 	useEffect(() => {
 		if (page) setOrderedIds(page.blocks.map((b) => b.id));
@@ -290,6 +290,9 @@ function PageDetailPage() {
 						<DropdownMenuItem onSelect={() => setTitleDialogOpen(true)}>
 							タイトルを編集
 						</DropdownMenuItem>
+						<DropdownMenuItem onSelect={() => setAddBlockDialogOpen(true)}>
+							Blockを追加
+						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
 							className="text-destructive focus:text-destructive focus:bg-destructive/10"
@@ -322,58 +325,59 @@ function PageDetailPage() {
 				</DialogContent>
 			</Dialog>
 
-			<Card className="mb-6">
-				<CardHeader>
-					<CardTitle className="text-base">Blocks</CardTitle>
-				</CardHeader>
-				<CardContent>
-					{orderedIds.length === 0 ? (
-						<p className="text-sm text-muted-foreground">
-							まだBlockがありません。下のフォームから追加してください。
-						</p>
-					) : (
-						<DndContext
-							sensors={sensors}
-							collisionDetection={closestCenter}
-							onDragEnd={handleDragEnd}
-						>
-							<SortableContext
-								items={orderedIds}
-								strategy={verticalListSortingStrategy}
-							>
-								<ul className="space-y-0">
-									{orderedIds.map((bid) => {
-										const b = blocksById.get(bid);
-										if (!b) return null;
-										return (
-											<SortableBlock
-												key={b.id}
-												blockId={b.id}
-												blockTitles={b.titles}
-												body={b.body}
-												orgId={orgId}
-												teamId={teamId}
-												titles={teamTitles ?? []}
-												onSave={(body) =>
-													updateBody.mutateAsync({ blockId: b.id, body })
-												}
-												onUnlink={() => unlink.mutate(b.id)}
-												onDelete={() => deleteB.mutate(b.id)}
-												onAddTitle={(title) => handleAddBlockTitle(b.id, title)}
-												onRemoveTitle={(title) =>
-													handleRemoveBlockTitle(b.id, title)
-												}
-											/>
-										);
-									})}
-								</ul>
-							</SortableContext>
-						</DndContext>
-					)}
-				</CardContent>
-			</Card>
+			<AddBlockDialog
+				open={addBlockDialogOpen}
+				onOpenChange={setAddBlockDialogOpen}
+				orgId={orgId}
+				teamId={teamId}
+				pageId={pageId}
+			/>
 
-			<AddBlockForm orgId={orgId} teamId={teamId} pageId={pageId} />
+			<div className="mb-6">
+				{orderedIds.length === 0 ? (
+					<p className="text-sm text-muted-foreground">
+						まだBlockがありません。
+					</p>
+				) : (
+					<DndContext
+						sensors={sensors}
+						collisionDetection={closestCenter}
+						onDragEnd={handleDragEnd}
+					>
+						<SortableContext
+							items={orderedIds}
+							strategy={verticalListSortingStrategy}
+						>
+							<ul className="space-y-0">
+								{orderedIds.map((bid) => {
+									const b = blocksById.get(bid);
+									if (!b) return null;
+									return (
+										<SortableBlock
+											key={b.id}
+											blockId={b.id}
+											blockTitles={b.titles}
+											body={b.body}
+											orgId={orgId}
+											teamId={teamId}
+											titles={teamTitles ?? []}
+											onSave={(body) =>
+												updateBody.mutateAsync({ blockId: b.id, body })
+											}
+											onUnlink={() => unlink.mutate(b.id)}
+											onDelete={() => deleteB.mutate(b.id)}
+											onAddTitle={(title) => handleAddBlockTitle(b.id, title)}
+											onRemoveTitle={(title) =>
+												handleRemoveBlockTitle(b.id, title)
+											}
+										/>
+									);
+								})}
+							</ul>
+						</SortableContext>
+					</DndContext>
+				)}
+			</div>
 		</main>
 	);
 }
@@ -512,11 +516,15 @@ function SortableBlock({
 	);
 }
 
-function AddBlockForm({
+function AddBlockDialog({
+	open,
+	onOpenChange,
 	orgId,
 	teamId,
 	pageId,
 }: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
 	orgId: string;
 	teamId: string;
 	pageId: string;
@@ -527,6 +535,16 @@ function AddBlockForm({
 	const [body, setBody] = useState("");
 	const [filter, setFilter] = useState("");
 	const [error, setError] = useState<string | null>(null);
+
+	useEffect(() => {
+		if (!open) {
+			setTitle("");
+			setBody("");
+			setFilter("");
+			setMode("new");
+			setError(null);
+		}
+	}, [open]);
 
 	const { data: blocks } = useQuery({
 		queryKey: ["blocks", teamId],
@@ -542,7 +560,10 @@ function AddBlockForm({
 		onSuccess: () => {
 			setTitle("");
 			setBody("");
+			setFilter("");
+			setMode("new");
 			setError(null);
+			onOpenChange(false);
 			qc.invalidateQueries({ queryKey: ["page", pageId] });
 			qc.invalidateQueries({ queryKey: ["blocks", teamId] });
 			qc.invalidateQueries({ queryKey: ["team-titles", teamId] });
@@ -554,7 +575,10 @@ function AddBlockForm({
 		mutationFn: (blockId: string) =>
 			addBlockToPage({ data: { orgId, teamId, pageId, blockId } }),
 		onSuccess: () => {
+			setFilter("");
+			setMode("new");
 			setError(null);
+			onOpenChange(false);
 			qc.invalidateQueries({ queryKey: ["page", pageId] });
 		},
 		onError: (e: Error) => setError(e.message),
@@ -570,109 +594,111 @@ function AddBlockForm({
 	});
 
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle className="text-base">Add Block</CardTitle>
-			</CardHeader>
-			<CardContent className="flex flex-col gap-3">
-				<div className="flex gap-2 text-sm">
-					<button
-						type="button"
-						className={`px-3 py-1 rounded-md border ${
-							mode === "new"
-								? "border-primary bg-primary text-primary-foreground"
-								: "border-border"
-						}`}
-						onClick={() => setMode("new")}
-					>
-						New
-					</button>
-					<button
-						type="button"
-						className={`px-3 py-1 rounded-md border ${
-							mode === "existing"
-								? "border-primary bg-primary text-primary-foreground"
-								: "border-border"
-						}`}
-						onClick={() => setMode("existing")}
-					>
-						Existing
-					</button>
-				</div>
-
-				{mode === "new" ? (
-					<>
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="new-block-title">Title *</Label>
-							<Input
-								id="new-block-title"
-								type="text"
-								value={title}
-								onChange={(e) => setTitle(e.target.value)}
-							/>
-						</div>
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="new-block-body">Body (Markdown)</Label>
-							<Textarea
-								id="new-block-body"
-								value={body}
-								onChange={(e) => setBody(e.target.value)}
-							/>
-						</div>
-						{error && <p className="text-sm text-destructive">{error}</p>}
-						<Button
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Blockを追加</DialogTitle>
+				</DialogHeader>
+				<div className="flex flex-col gap-3">
+					<div className="flex gap-2 text-sm">
+						<button
 							type="button"
-							disabled={!title.trim() || createAndAdd.isPending}
-							onClick={() => createAndAdd.mutate()}
+							className={`px-3 py-1 rounded-md border ${
+								mode === "new"
+									? "border-primary bg-primary text-primary-foreground"
+									: "border-border"
+							}`}
+							onClick={() => setMode("new")}
 						>
-							Create & Add
-						</Button>
-					</>
-				) : (
-					<>
-						<Input
-							type="text"
-							placeholder="既存Blockを検索"
-							value={filter}
-							onChange={(e) => setFilter(e.target.value)}
-						/>
-						{error && <p className="text-sm text-destructive">{error}</p>}
-						<ul className="space-y-1 max-h-80 overflow-auto">
-							{filtered.map((b) => (
-								<li
-									key={b.id}
-									className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
-								>
-									<div className="min-w-0 flex-1">
-										<div className="font-medium text-sm truncate">
-											{b.titles[0] ?? "(no title)"}
-										</div>
-										{b.titles.length > 1 && (
-											<div className="text-xs text-muted-foreground truncate">
-												aliases: {b.titles.slice(1).join(", ")}
-											</div>
-										)}
-									</div>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onClick={() => addExisting.mutate(b.id)}
-										disabled={addExisting.isPending}
+							New
+						</button>
+						<button
+							type="button"
+							className={`px-3 py-1 rounded-md border ${
+								mode === "existing"
+									? "border-primary bg-primary text-primary-foreground"
+									: "border-border"
+							}`}
+							onClick={() => setMode("existing")}
+						>
+							Existing
+						</button>
+					</div>
+
+					{mode === "new" ? (
+						<>
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="new-block-title">Title *</Label>
+								<Input
+									id="new-block-title"
+									type="text"
+									value={title}
+									onChange={(e) => setTitle(e.target.value)}
+								/>
+							</div>
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="new-block-body">Body (Markdown)</Label>
+								<Textarea
+									id="new-block-body"
+									value={body}
+									onChange={(e) => setBody(e.target.value)}
+								/>
+							</div>
+							{error && <p className="text-sm text-destructive">{error}</p>}
+							<Button
+								type="button"
+								disabled={!title.trim() || createAndAdd.isPending}
+								onClick={() => createAndAdd.mutate()}
+							>
+								Create & Add
+							</Button>
+						</>
+					) : (
+						<>
+							<Input
+								type="text"
+								placeholder="既存Blockを検索"
+								value={filter}
+								onChange={(e) => setFilter(e.target.value)}
+							/>
+							{error && <p className="text-sm text-destructive">{error}</p>}
+							<ul className="space-y-1 max-h-80 overflow-auto">
+								{filtered.map((b) => (
+									<li
+										key={b.id}
+										className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
 									>
-										Add
-									</Button>
-								</li>
-							))}
-							{filtered.length === 0 && (
-								<li className="text-sm text-muted-foreground">
-									該当するBlockがありません。
-								</li>
-							)}
-						</ul>
-					</>
-				)}
-			</CardContent>
-		</Card>
+										<div className="min-w-0 flex-1">
+											<div className="font-medium text-sm truncate">
+												{b.titles[0] ?? "(no title)"}
+											</div>
+											{b.titles.length > 1 && (
+												<div className="text-xs text-muted-foreground truncate">
+													aliases: {b.titles.slice(1).join(", ")}
+												</div>
+											)}
+										</div>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() => addExisting.mutate(b.id)}
+											disabled={addExisting.isPending}
+										>
+											Add
+										</Button>
+									</li>
+								))}
+								{filtered.length === 0 && (
+									<li className="text-sm text-muted-foreground">
+										該当するBlockがありません。
+									</li>
+								)}
+							</ul>
+						</>
+					)}
+				</div>
+			</DialogContent>
+		</Dialog>
 	);
 }
