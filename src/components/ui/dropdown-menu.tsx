@@ -30,7 +30,8 @@ function DropdownMenuPortal({
 
 function DropdownMenuContent({
 	className,
-	sideOffset = 4,
+	sideOffset = 8,
+	align = "end",
 	...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
 	return (
@@ -38,6 +39,7 @@ function DropdownMenuContent({
 			<DropdownMenuPrimitive.Content
 				data-slot="dropdown-menu-content"
 				sideOffset={sideOffset}
+				align={align}
 				className={cn(
 					"bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 min-w-[8rem] overflow-hidden rounded-md border p-1 shadow-md",
 					className,
@@ -77,10 +79,24 @@ function DropdownMenuSeparator({
 	);
 }
 
+function DropdownMenuLabel({
+	className,
+	...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Label>) {
+	return (
+		<DropdownMenuPrimitive.Label
+			data-slot="dropdown-menu-label"
+			className={cn("text-muted-foreground px-2 py-1.5 text-xs", className)}
+			{...props}
+		/>
+	);
+}
+
 export {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuLabel,
 	DropdownMenuPortal,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
