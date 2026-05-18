@@ -22,11 +22,18 @@ import {
 	redirect,
 	useNavigate,
 } from "@tanstack/react-router";
+import { InfoIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { InlineBlockEditor } from "#/components/block-editor";
 import { TitleManager } from "#/components/title-manager";
 import { Button } from "#/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from "#/components/ui/dialog";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import { Textarea } from "#/components/ui/textarea";
@@ -187,6 +194,24 @@ function PageDetailPage() {
 		qc.invalidateQueries({ queryKey: ["team-titles", teamId] });
 	}
 
+	async function handleAddBlockTitle(blockId: string, title: string) {
+		await addTitle({
+			data: { orgId, teamId, kind: "block", refId: blockId, title },
+		});
+		qc.invalidateQueries({ queryKey: ["page", pageId] });
+		qc.invalidateQueries({ queryKey: ["blocks", teamId] });
+		qc.invalidateQueries({ queryKey: ["team-titles", teamId] });
+	}
+
+	async function handleRemoveBlockTitle(blockId: string, title: string) {
+		await removeTitle({
+			data: { orgId, teamId, kind: "block", refId: blockId, title },
+		});
+		qc.invalidateQueries({ queryKey: ["page", pageId] });
+		qc.invalidateQueries({ queryKey: ["blocks", teamId] });
+		qc.invalidateQueries({ queryKey: ["team-titles", teamId] });
+	}
+
 	const handleDeletePage = useMutation({
 		mutationFn: () => deletePage({ data: { orgId, pageId } }),
 		onSuccess: () => {
@@ -297,8 +322,7 @@ function PageDetailPage() {
 											<SortableBlock
 												key={b.id}
 												blockId={b.id}
-												title={b.titles[0] ?? "(no title)"}
-												aliases={b.titles.slice(1)}
+												blockTitles={b.titles}
 												body={b.body}
 												orgId={orgId}
 												teamId={teamId}
@@ -307,15 +331,13 @@ function PageDetailPage() {
 													updateBody.mutateAsync({ blockId: b.id, body })
 												}
 												onUnlink={() => unlink.mutate(b.id)}
-												onDelete={() => {
-													if (
-														confirm(
-															"Delete this block entirely? It will be removed from all pages.",
-														)
-													) {
-														deleteB.mutate(b.id);
-													}
-												}}
+												onDelete={() => deleteB.mutate(b.id)}
+												onAddTitle={(title) =>
+													handleAddBlockTitle(b.id, title)
+												}
+												onRemoveTitle={(title) =>
+													handleRemoveBlockTitle(b.id, title)
+												}
 											/>
 										);
 									})}
@@ -333,8 +355,7 @@ function PageDetailPage() {
 
 type SortableBlockProps = {
 	blockId: string;
-	title: string;
-	aliases: string[];
+	blockTitles: string[];
 	body: string;
 	orgId: string;
 	teamId: string;
@@ -342,12 +363,13 @@ type SortableBlockProps = {
 	onSave: (body: string) => Promise<void>;
 	onUnlink: () => void;
 	onDelete: () => void;
+	onAddTitle: (title: string) => Promise<void>;
+	onRemoveTitle: (title: string) => Promise<void>;
 };
 
 function SortableBlock({
 	blockId,
-	title,
-	aliases,
+	blockTitles,
 	body,
 	orgId,
 	teamId,
@@ -355,7 +377,11 @@ function SortableBlock({
 	onSave,
 	onUnlink,
 	onDelete,
+	onAddTitle,
+	onRemoveTitle,
 }: SortableBlockProps) {
+	const [detailOpen, setDetailOpen] = useState(false);
+
 	const {
 		attributes,
 		listeners,
@@ -388,37 +414,17 @@ function SortableBlock({
 					>
 						⋮⋮
 					</button>
-					<Link
-						to="/org/$orgId/team/$teamId/blocks/$blockId"
-						params={{ orgId, teamId, blockId }}
-						className="text-sm font-medium truncate text-muted-foreground group-hover:text-foreground transition-colors hover:underline"
-					>
-						{title}
-					</Link>
-					{aliases.length > 0 && (
-						<span className="text-xs text-muted-foreground/60 group-hover:text-muted-foreground truncate transition-colors">
-							({aliases.join(", ")})
-						</span>
-					)}
 				</div>
 				<div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
 					<Button
 						type="button"
 						variant="ghost"
-						size="sm"
-						onClick={onUnlink}
-						className="text-xs"
+						size="icon"
+						className="h-7 w-7 text-muted-foreground hover:text-foreground"
+						aria-label="Block detail"
+						onClick={() => setDetailOpen(true)}
 					>
-						Unlink
-					</Button>
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						onClick={onDelete}
-						className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-					>
-						Delete
+						<InfoIcon className="h-4 w-4" />
 					</Button>
 				</div>
 			</div>
@@ -432,6 +438,51 @@ function SortableBlock({
 					excludeRefIds={[blockId]}
 				/>
 			</div>
+
+			<Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Block Detail</DialogTitle>
+					</DialogHeader>
+					<div className="flex flex-col gap-4">
+						<TitleManager
+							titles={blockTitles}
+							onAdd={onAddTitle}
+							onRemove={onRemoveTitle}
+						/>
+						<div className="flex gap-2 pt-2 border-t">
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() => {
+									onUnlink();
+									setDetailOpen(false);
+								}}
+							>
+								Unlink
+							</Button>
+							<Button
+								type="button"
+								variant="destructive"
+								size="sm"
+								onClick={() => {
+									if (
+										confirm(
+											"Delete this block entirely? It will be removed from all pages.",
+										)
+									) {
+										onDelete();
+										setDetailOpen(false);
+									}
+								}}
+							>
+								Delete
+							</Button>
+						</div>
+					</div>
+				</DialogContent>
+			</Dialog>
 		</li>
 	);
 }
