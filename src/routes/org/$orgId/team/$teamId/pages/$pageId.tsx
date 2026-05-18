@@ -22,7 +22,7 @@ import {
 	redirect,
 	useNavigate,
 } from "@tanstack/react-router";
-import { InfoIcon, MoreHorizontal } from "lucide-react";
+import { ExternalLink, MoreHorizontal, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { InlineBlockEditor } from "#/components/block-editor";
 import { TitleManager } from "#/components/title-manager";
@@ -42,22 +42,19 @@ import {
 	DropdownMenuTrigger,
 } from "#/components/ui/dropdown-menu";
 import { Input } from "#/components/ui/input";
-import { Label } from "#/components/ui/label";
-import { Textarea } from "#/components/ui/textarea";
 import { getSession } from "#/server/auth";
 import {
-	addBlockToPage,
+	addEmbedSection,
+	addTextSection,
 	addTitle,
-	createAndAddBlockToPage,
-	deleteBlock,
 	deletePage,
-	getPage,
-	listBlocks,
+	getPageWithEmbeds,
+	listPages,
 	listTeamTitles,
+	removeSection,
 	removeTitle,
-	reorderPageBlocks,
-	unlinkBlockFromPage,
-	updateBlockBody,
+	reorderSections,
+	updateSectionBody,
 } from "#/server/notes";
 import { listMembers } from "#/server/orgs";
 
@@ -69,9 +66,11 @@ export const Route = createFileRoute("/org/$orgId/team/$teamId/pages/$pageId")({
 	loader: async ({ context, params }) => {
 		await Promise.all([
 			context.queryClient.prefetchQuery({
-				queryKey: ["page", params.pageId],
+				queryKey: ["page-embeds", params.pageId],
 				queryFn: () =>
-					getPage({ data: { orgId: params.orgId, pageId: params.pageId } }),
+					getPageWithEmbeds({
+						data: { orgId: params.orgId, pageId: params.pageId },
+					}),
 			}),
 			context.queryClient.prefetchQuery({
 				queryKey: ["team-titles", params.teamId],
@@ -86,7 +85,7 @@ export const Route = createFileRoute("/org/$orgId/team/$teamId/pages/$pageId")({
 			}),
 		]);
 		const page = context.queryClient.getQueryData<{ titles: string[] }>([
-			"page",
+			"page-embeds",
 			params.pageId,
 		]);
 		return { pageTitle: page?.titles?.[0] ?? null };
@@ -103,14 +102,27 @@ export const Route = createFileRoute("/org/$orgId/team/$teamId/pages/$pageId")({
 	component: PageDetailPage,
 });
 
+type SectionData = {
+	id: string;
+	type: "text" | "embed";
+	body: string;
+	order: number;
+	embedPageId: string | null;
+	embedPage?: {
+		id: string;
+		titles: string[];
+		sections: SectionData[];
+	} | null;
+};
+
 function PageDetailPage() {
 	const { orgId, teamId, pageId } = Route.useParams();
 	const qc = useQueryClient();
 	const navigate = useNavigate();
 
 	const { data: page } = useQuery({
-		queryKey: ["page", pageId],
-		queryFn: () => getPage({ data: { orgId, pageId } }),
+		queryKey: ["page-embeds", pageId],
+		queryFn: () => getPageWithEmbeds({ data: { orgId, pageId } }),
 	});
 
 	const { data: org } = useQuery({
@@ -127,12 +139,12 @@ function PageDetailPage() {
 	const [titleDialogOpen, setTitleDialogOpen] = useState(false);
 
 	useEffect(() => {
-		if (page) setOrderedIds(page.blocks.map((b) => b.id));
+		if (page) setOrderedIds(page.sections.map((s) => s.id));
 	}, [page]);
 
-	const blocksById = useMemo(() => {
-		const m = new Map<string, NonNullable<typeof page>["blocks"][number]>();
-		if (page) for (const b of page.blocks) m.set(b.id, b);
+	const sectionsById = useMemo(() => {
+		const m = new Map<string, SectionData>();
+		if (page) for (const s of page.sections) m.set(s.id, s);
 		return m;
 	}, [page]);
 
@@ -144,9 +156,10 @@ function PageDetailPage() {
 	);
 
 	const reorder = useMutation({
-		mutationFn: (blockIds: string[]) =>
-			reorderPageBlocks({ data: { orgId, pageId, blockIds } }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ["page", pageId] }),
+		mutationFn: (sectionIds: string[]) =>
+			reorderSections({ data: { orgId, pageId, sectionIds } }),
+		onSuccess: () =>
+			qc.invalidateQueries({ queryKey: ["page-embeds", pageId] }),
 	});
 
 	function handleDragEnd(e: DragEndEvent) {
@@ -161,65 +174,38 @@ function PageDetailPage() {
 	}
 
 	const updateBody = useMutation({
-		mutationFn: async (vars: { blockId: string; body: string }) => {
-			await updateBlockBody({
-				data: { orgId, blockId: vars.blockId, body: vars.body },
+		mutationFn: async (vars: { sectionId: string; body: string }) => {
+			await updateSectionBody({
+				data: { orgId, sectionId: vars.sectionId, body: vars.body },
 			});
 		},
 		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: ["page", pageId] });
-			qc.invalidateQueries({ queryKey: ["blocks", teamId] });
+			qc.invalidateQueries({ queryKey: ["page-embeds", pageId] });
 		},
 	});
 
-	const unlink = useMutation({
-		mutationFn: (blockId: string) =>
-			unlinkBlockFromPage({ data: { orgId, pageId, blockId } }),
-		onSuccess: () => qc.invalidateQueries({ queryKey: ["page", pageId] }),
-	});
-
-	const deleteB = useMutation({
-		mutationFn: (blockId: string) => deleteBlock({ data: { orgId, blockId } }),
-		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: ["page", pageId] });
-			qc.invalidateQueries({ queryKey: ["blocks", teamId] });
-			qc.invalidateQueries({ queryKey: ["team-titles", teamId] });
-		},
+	const removeSec = useMutation({
+		mutationFn: (sectionId: string) =>
+			removeSection({ data: { orgId, pageId, sectionId } }),
+		onSuccess: () =>
+			qc.invalidateQueries({ queryKey: ["page-embeds", pageId] }),
 	});
 
 	async function handleAddTitle(title: string) {
 		await addTitle({
-			data: { orgId, teamId, kind: "page", refId: pageId, title },
+			data: { orgId, teamId, refId: pageId, title },
 		});
-		qc.invalidateQueries({ queryKey: ["page", pageId] });
+		qc.invalidateQueries({ queryKey: ["page-embeds", pageId] });
 		qc.invalidateQueries({ queryKey: ["pages", teamId] });
 		qc.invalidateQueries({ queryKey: ["team-titles", teamId] });
 	}
 
 	async function handleRemoveTitle(title: string) {
 		await removeTitle({
-			data: { orgId, teamId, kind: "page", refId: pageId, title },
+			data: { orgId, teamId, refId: pageId, title },
 		});
-		qc.invalidateQueries({ queryKey: ["page", pageId] });
+		qc.invalidateQueries({ queryKey: ["page-embeds", pageId] });
 		qc.invalidateQueries({ queryKey: ["pages", teamId] });
-		qc.invalidateQueries({ queryKey: ["team-titles", teamId] });
-	}
-
-	async function handleAddBlockTitle(blockId: string, title: string) {
-		await addTitle({
-			data: { orgId, teamId, kind: "block", refId: blockId, title },
-		});
-		qc.invalidateQueries({ queryKey: ["page", pageId] });
-		qc.invalidateQueries({ queryKey: ["blocks", teamId] });
-		qc.invalidateQueries({ queryKey: ["team-titles", teamId] });
-	}
-
-	async function handleRemoveBlockTitle(blockId: string, title: string) {
-		await removeTitle({
-			data: { orgId, teamId, kind: "block", refId: blockId, title },
-		});
-		qc.invalidateQueries({ queryKey: ["page", pageId] });
-		qc.invalidateQueries({ queryKey: ["blocks", teamId] });
 		qc.invalidateQueries({ queryKey: ["team-titles", teamId] });
 	}
 
@@ -296,7 +282,7 @@ function PageDetailPage() {
 							onSelect={() => {
 								if (
 									confirm(
-										"Delete this page? Its blocks will remain but page links will be removed.",
+										"Delete this page? Embed sections referencing this page will be cleared.",
 									)
 								) {
 									handleDeletePage.mutate();
@@ -324,12 +310,12 @@ function PageDetailPage() {
 
 			<Card className="mb-6">
 				<CardHeader>
-					<CardTitle className="text-base">Blocks</CardTitle>
+					<CardTitle className="text-base">Sections</CardTitle>
 				</CardHeader>
 				<CardContent>
 					{orderedIds.length === 0 ? (
 						<p className="text-sm text-muted-foreground">
-							まだBlockがありません。下のフォームから追加してください。
+							まだセクションがありません。下のフォームから追加してください。
 						</p>
 					) : (
 						<DndContext
@@ -342,27 +328,23 @@ function PageDetailPage() {
 								strategy={verticalListSortingStrategy}
 							>
 								<ul className="space-y-0">
-									{orderedIds.map((bid) => {
-										const b = blocksById.get(bid);
-										if (!b) return null;
+									{orderedIds.map((sid) => {
+										const s = sectionsById.get(sid);
+										if (!s) return null;
 										return (
-											<SortableBlock
-												key={b.id}
-												blockId={b.id}
-												blockTitles={b.titles}
-												body={b.body}
+											<SortableSection
+												key={s.id}
+												section={s}
 												orgId={orgId}
 												teamId={teamId}
 												titles={teamTitles ?? []}
 												onSave={(body) =>
-													updateBody.mutateAsync({ blockId: b.id, body })
+													updateBody.mutateAsync({
+														sectionId: s.id,
+														body,
+													})
 												}
-												onUnlink={() => unlink.mutate(b.id)}
-												onDelete={() => deleteB.mutate(b.id)}
-												onAddTitle={(title) => handleAddBlockTitle(b.id, title)}
-												onRemoveTitle={(title) =>
-													handleRemoveBlockTitle(b.id, title)
-												}
+												onRemove={() => removeSec.mutate(s.id)}
 											/>
 										);
 									})}
@@ -373,40 +355,28 @@ function PageDetailPage() {
 				</CardContent>
 			</Card>
 
-			<AddBlockForm orgId={orgId} teamId={teamId} pageId={pageId} />
+			<AddSectionForm orgId={orgId} teamId={teamId} pageId={pageId} />
 		</main>
 	);
 }
 
-type SortableBlockProps = {
-	blockId: string;
-	blockTitles: string[];
-	body: string;
+type SortableSectionProps = {
+	section: SectionData;
 	orgId: string;
 	teamId: string;
-	titles: { title: string; kind: "block" | "page"; refId: string }[];
+	titles: { title: string; refId: string }[];
 	onSave: (body: string) => Promise<void>;
-	onUnlink: () => void;
-	onDelete: () => void;
-	onAddTitle: (title: string) => Promise<void>;
-	onRemoveTitle: (title: string) => Promise<void>;
+	onRemove: () => void;
 };
 
-function SortableBlock({
-	blockId,
-	blockTitles,
-	body,
+function SortableSection({
+	section,
 	orgId,
 	teamId,
 	titles,
 	onSave,
-	onUnlink,
-	onDelete,
-	onAddTitle,
-	onRemoveTitle,
-}: SortableBlockProps) {
-	const [detailOpen, setDetailOpen] = useState(false);
-
+	onRemove,
+}: SortableSectionProps) {
 	const {
 		attributes,
 		listeners,
@@ -414,7 +384,7 @@ function SortableBlock({
 		transform,
 		transition,
 		isDragging,
-	} = useSortable({ id: blockId });
+	} = useSortable({ id: section.id });
 
 	const style = {
 		transform: CSS.Transform.toString(transform),
@@ -439,80 +409,121 @@ function SortableBlock({
 					>
 						⋮⋮
 					</button>
+					{section.type === "embed" && section.embedPage && (
+						<span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+							embed: {section.embedPage.titles[0] ?? "(no title)"}
+						</span>
+					)}
 				</div>
 				<div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+					{section.type === "embed" && section.embedPageId && (
+						<Link
+							to="/org/$orgId/team/$teamId/pages/$pageId"
+							params={{ orgId, teamId, pageId: section.embedPageId }}
+							className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
+							aria-label="Go to embedded page"
+						>
+							<ExternalLink className="h-3.5 w-3.5" />
+						</Link>
+					)}
 					<Button
 						type="button"
 						variant="ghost"
-						size="icon"
-						className="h-7 w-7 text-muted-foreground hover:text-foreground"
-						aria-label="Block detail"
-						onClick={() => setDetailOpen(true)}
+						size="sm"
+						className="h-7 text-xs text-muted-foreground hover:text-destructive"
+						onClick={onRemove}
 					>
-						<InfoIcon className="h-4 w-4" />
+						Remove
 					</Button>
 				</div>
 			</div>
 			<div className="px-3 pb-2 pt-0.5">
-				<InlineBlockEditor
-					body={body}
-					onSave={onSave}
-					titles={titles}
-					orgId={orgId}
-					teamId={teamId}
-					excludeRefIds={[blockId]}
-				/>
+				{section.type === "text" ? (
+					<InlineBlockEditor
+						body={section.body}
+						onSave={onSave}
+						titles={titles}
+						orgId={orgId}
+						teamId={teamId}
+						excludeRefIds={[]}
+					/>
+				) : section.embedPage ? (
+					<EmbedPageView
+						embedPage={section.embedPage}
+						orgId={orgId}
+						teamId={teamId}
+						titles={titles}
+					/>
+				) : (
+					<p className="text-sm text-muted-foreground italic">
+						(embedded page was deleted)
+					</p>
+				)}
 			</div>
-
-			<Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Block Detail</DialogTitle>
-					</DialogHeader>
-					<div className="flex flex-col gap-4">
-						<TitleManager
-							titles={blockTitles}
-							onAdd={onAddTitle}
-							onRemove={onRemoveTitle}
-						/>
-						<div className="flex gap-2 pt-2 border-t">
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								onClick={() => {
-									onUnlink();
-									setDetailOpen(false);
-								}}
-							>
-								Unlink
-							</Button>
-							<Button
-								type="button"
-								variant="destructive"
-								size="sm"
-								onClick={() => {
-									if (
-										confirm(
-											"Delete this block entirely? It will be removed from all pages.",
-										)
-									) {
-										onDelete();
-										setDetailOpen(false);
-									}
-								}}
-							>
-								Delete
-							</Button>
-						</div>
-					</div>
-				</DialogContent>
-			</Dialog>
 		</li>
 	);
 }
 
-function AddBlockForm({
+function EmbedPageView({
+	embedPage,
+	orgId,
+	teamId,
+	titles,
+}: {
+	embedPage: NonNullable<SectionData["embedPage"]>;
+	orgId: string;
+	teamId: string;
+	titles: { title: string; refId: string }[];
+}) {
+	const qc = useQueryClient();
+	const updateBody = useMutation({
+		mutationFn: async (vars: { sectionId: string; body: string }) => {
+			await updateSectionBody({
+				data: { orgId, sectionId: vars.sectionId, body: vars.body },
+			});
+		},
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ["page-embeds"] });
+		},
+	});
+
+	return (
+		<div className="border-l-2 border-primary/20 pl-3 ml-1">
+			{embedPage.sections.map((s) => (
+				<div key={s.id} className="mb-1">
+					{s.type === "text" ? (
+						<InlineBlockEditor
+							body={s.body}
+							onSave={(body) =>
+								updateBody.mutateAsync({ sectionId: s.id, body })
+							}
+							titles={titles}
+							orgId={orgId}
+							teamId={teamId}
+							excludeRefIds={[embedPage.id]}
+						/>
+					) : s.embedPage ? (
+						<EmbedPageView
+							embedPage={s.embedPage}
+							orgId={orgId}
+							teamId={teamId}
+							titles={titles}
+						/>
+					) : (
+						<p className="text-sm text-muted-foreground italic">
+							(embedded page was deleted)
+						</p>
+					)}
+				</div>
+			))}
+			{embedPage.sections.length === 0 && (
+				<p className="text-sm text-muted-foreground italic">(empty page)</p>
+			)}
+		</div>
+	);
+}
+
+function AddSectionForm({
 	orgId,
 	teamId,
 	pageId,
@@ -522,134 +533,117 @@ function AddBlockForm({
 	pageId: string;
 }) {
 	const qc = useQueryClient();
-	const [mode, setMode] = useState<"new" | "existing">("new");
-	const [title, setTitle] = useState("");
+	const [mode, setMode] = useState<"text" | "embed">("text");
 	const [body, setBody] = useState("");
 	const [filter, setFilter] = useState("");
 	const [error, setError] = useState<string | null>(null);
 
-	const { data: blocks } = useQuery({
-		queryKey: ["blocks", teamId],
-		queryFn: () => listBlocks({ data: { orgId, teamId } }),
-		enabled: mode === "existing",
+	const { data: allPages } = useQuery({
+		queryKey: ["pages", teamId],
+		queryFn: () => listPages({ data: { orgId, teamId } }),
+		enabled: mode === "embed",
 	});
 
-	const createAndAdd = useMutation({
-		mutationFn: () =>
-			createAndAddBlockToPage({
-				data: { orgId, teamId, pageId, title: title.trim(), body },
-			}),
+	const addText = useMutation({
+		mutationFn: () => addTextSection({ data: { orgId, pageId, body } }),
 		onSuccess: () => {
-			setTitle("");
 			setBody("");
 			setError(null);
-			qc.invalidateQueries({ queryKey: ["page", pageId] });
-			qc.invalidateQueries({ queryKey: ["blocks", teamId] });
-			qc.invalidateQueries({ queryKey: ["team-titles", teamId] });
+			qc.invalidateQueries({ queryKey: ["page-embeds", pageId] });
 		},
 		onError: (e: Error) => setError(e.message),
 	});
 
-	const addExisting = useMutation({
-		mutationFn: (blockId: string) =>
-			addBlockToPage({ data: { orgId, teamId, pageId, blockId } }),
+	const addEmbed = useMutation({
+		mutationFn: (embedPageId: string) =>
+			addEmbedSection({ data: { orgId, pageId, embedPageId } }),
 		onSuccess: () => {
 			setError(null);
-			qc.invalidateQueries({ queryKey: ["page", pageId] });
+			qc.invalidateQueries({ queryKey: ["page-embeds", pageId] });
 		},
 		onError: (e: Error) => setError(e.message),
 	});
 
-	const filtered = (blocks ?? []).filter((b) => {
+	const filtered = (allPages ?? []).filter((p) => {
+		if (p.id === pageId) return false; // Don't allow self-embed
 		if (!filter.trim()) return true;
 		const f = filter.toLowerCase();
-		return (
-			b.titles.some((t) => t.toLowerCase().includes(f)) ||
-			b.body.toLowerCase().includes(f)
-		);
+		return p.titles.some((t) => t.toLowerCase().includes(f));
 	});
 
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle className="text-base">Add Block</CardTitle>
+				<CardTitle className="text-base flex items-center gap-2">
+					<Plus className="h-4 w-4" />
+					Add Section
+				</CardTitle>
 			</CardHeader>
 			<CardContent className="flex flex-col gap-3">
 				<div className="flex gap-2 text-sm">
 					<button
 						type="button"
 						className={`px-3 py-1 rounded-md border ${
-							mode === "new"
+							mode === "text"
 								? "border-primary bg-primary text-primary-foreground"
 								: "border-border"
 						}`}
-						onClick={() => setMode("new")}
+						onClick={() => setMode("text")}
 					>
-						New
+						Text
 					</button>
 					<button
 						type="button"
 						className={`px-3 py-1 rounded-md border ${
-							mode === "existing"
+							mode === "embed"
 								? "border-primary bg-primary text-primary-foreground"
 								: "border-border"
 						}`}
-						onClick={() => setMode("existing")}
+						onClick={() => setMode("embed")}
 					>
-						Existing
+						Embed Page
 					</button>
 				</div>
 
-				{mode === "new" ? (
+				{mode === "text" ? (
 					<>
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="new-block-title">Title *</Label>
-							<Input
-								id="new-block-title"
-								type="text"
-								value={title}
-								onChange={(e) => setTitle(e.target.value)}
-							/>
-						</div>
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="new-block-body">Body (Markdown)</Label>
-							<Textarea
-								id="new-block-body"
-								value={body}
-								onChange={(e) => setBody(e.target.value)}
-							/>
-						</div>
+						<textarea
+							className="min-h-24 w-full rounded-md border border-border px-3 py-2 text-sm font-mono bg-background"
+							placeholder="Markdown text..."
+							value={body}
+							onChange={(e) => setBody(e.target.value)}
+						/>
 						{error && <p className="text-sm text-destructive">{error}</p>}
 						<Button
 							type="button"
-							disabled={!title.trim() || createAndAdd.isPending}
-							onClick={() => createAndAdd.mutate()}
+							disabled={!body.trim() || addText.isPending}
+							onClick={() => addText.mutate()}
 						>
-							Create & Add
+							Add Text Section
 						</Button>
 					</>
 				) : (
 					<>
 						<Input
 							type="text"
-							placeholder="既存Blockを検索"
+							placeholder="ページをタイトルで検索"
 							value={filter}
 							onChange={(e) => setFilter(e.target.value)}
 						/>
 						{error && <p className="text-sm text-destructive">{error}</p>}
 						<ul className="space-y-1 max-h-80 overflow-auto">
-							{filtered.map((b) => (
+							{filtered.map((p) => (
 								<li
-									key={b.id}
+									key={p.id}
 									className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
 								>
 									<div className="min-w-0 flex-1">
 										<div className="font-medium text-sm truncate">
-											{b.titles[0] ?? "(no title)"}
+											{p.titles[0] ?? "(no title)"}
 										</div>
-										{b.titles.length > 1 && (
+										{p.titles.length > 1 && (
 											<div className="text-xs text-muted-foreground truncate">
-												aliases: {b.titles.slice(1).join(", ")}
+												aliases: {p.titles.slice(1).join(", ")}
 											</div>
 										)}
 									</div>
@@ -657,16 +651,16 @@ function AddBlockForm({
 										type="button"
 										variant="outline"
 										size="sm"
-										onClick={() => addExisting.mutate(b.id)}
-										disabled={addExisting.isPending}
+										onClick={() => addEmbed.mutate(p.id)}
+										disabled={addEmbed.isPending}
 									>
-										Add
+										Embed
 									</Button>
 								</li>
 							))}
 							{filtered.length === 0 && (
 								<li className="text-sm text-muted-foreground">
-									該当するBlockがありません。
+									該当するページがありません。
 								</li>
 							)}
 						</ul>
