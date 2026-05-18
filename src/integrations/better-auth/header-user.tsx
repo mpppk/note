@@ -53,8 +53,9 @@ export default function BetterAuthHeader() {
 					</DropdownMenuItem>
 					<DropdownMenuSeparator />
 					<DropdownMenuItem
-						onSelect={() => {
-							void authClient.signOut();
+						onSelect={async () => {
+							await authClient.signOut();
+							void router.navigate({ to: "/login" });
 						}}
 					>
 						Sign out
