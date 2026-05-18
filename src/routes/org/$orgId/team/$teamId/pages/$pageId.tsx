@@ -78,7 +78,10 @@ export const Route = createFileRoute("/org/$orgId/team/$teamId/pages/$pageId")({
 				queryFn: () => listMembers({ data: { orgId: params.orgId } }),
 			}),
 		]);
-		const page = context.queryClient.getQueryData<{ titles: string[] }>(["page", params.pageId]);
+		const page = context.queryClient.getQueryData<{ titles: string[] }>([
+			"page",
+			params.pageId,
+		]);
 		return { pageTitle: page?.titles?.[0] ?? null };
 	},
 	head: ({ loaderData }) => ({
@@ -332,9 +335,7 @@ function PageDetailPage() {
 												}
 												onUnlink={() => unlink.mutate(b.id)}
 												onDelete={() => deleteB.mutate(b.id)}
-												onAddTitle={(title) =>
-													handleAddBlockTitle(b.id, title)
-												}
+												onAddTitle={(title) => handleAddBlockTitle(b.id, title)}
 												onRemoveTitle={(title) =>
 													handleRemoveBlockTitle(b.id, title)
 												}
