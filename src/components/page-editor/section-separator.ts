@@ -76,6 +76,10 @@ class SectionSeparatorWidget extends WidgetType {
 		el.addEventListener("mouseleave", () => {
 			btns.style.opacity = "0";
 		});
+		// Prevent the editor from gaining focus when clicking the separator bar
+		el.addEventListener("mousedown", (e) => {
+			e.preventDefault();
+		});
 		// Touch: toggle visibility on tap on the separator bar
 		el.addEventListener(
 			"touchstart",

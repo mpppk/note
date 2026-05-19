@@ -190,6 +190,18 @@ export function PageEditor({
 				baseTheme,
 				updateListener,
 				EditorView.domEventHandlers({
+					mousedown(event) {
+						// Prevent focus when clicking in editor chrome (scroller, gutter, etc.)
+						// but not on actual text content or interactive widgets.
+						const target = event.target as Element;
+						if (
+							!target.closest(".cm-content") &&
+							!target.closest(".cm-section-separator-btn")
+						) {
+							event.preventDefault();
+							return true;
+						}
+					},
 					blur(_, view) {
 						if (debounceRef.current) {
 							clearTimeout(debounceRef.current);
