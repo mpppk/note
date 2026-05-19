@@ -10,7 +10,7 @@
 		"build": "vite build",
 		"preview": "bun run build && vite preview",
 		"test": "vitest run",
-		"format": "biome format",
+		"format": "biome format --write",
 		"lint": "biome lint",
 		"check": "biome check",
 		"typecheck": "tsc",
