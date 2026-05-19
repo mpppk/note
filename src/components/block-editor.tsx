@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Markdown } from "#/components/markdown";
-import { Textarea } from "#/components/ui/textarea";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { LiveEditor } from "#/components/live-editor";
 import type { TitleEntry } from "#/lib/remark-autolink";
 
 type Props = {
@@ -16,76 +15,85 @@ type Props = {
 export function InlineBlockEditor({
 	body,
 	onSave,
-	titles,
-	orgId,
-	teamId,
-	excludeRefIds,
+	titles: _titles,
+	orgId: _orgId,
+	teamId: _teamId,
+	excludeRefIds: _excludeRefIds,
 	saving,
 }: Props) {
-	const [editing, setEditing] = useState(false);
 	const [draft, setDraft] = useState(body);
-	const ref = useRef<HTMLTextAreaElement>(null);
+	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const lastSavedRef = useRef(body);
 
 	useEffect(() => {
-		if (!editing) setDraft(body);
-	}, [body, editing]);
+		setDraft(body);
+		lastSavedRef.current = body;
+	}, [body]);
+
+	const save = useCallback(
+		(text: string) => {
+			if (text !== lastSavedRef.current) {
+				lastSavedRef.current = text;
+				void onSave(text);
+			}
+		},
+		[onSave],
+	);
+
+	const handleChange = useCallback(
+		(text: string) => {
+			setDraft(text);
+			if (debounceRef.current) clearTimeout(debounceRef.current);
+			debounceRef.current = setTimeout(() => {
+				save(text);
+			}, 1500);
+		},
+		[save],
+	);
+
+	const handleBlur = useCallback(
+		(text: string) => {
+			if (debounceRef.current) {
+				clearTimeout(debounceRef.current);
+				debounceRef.current = null;
+			}
+			save(text);
+		},
+		[save],
+	);
 
 	useEffect(() => {
-		if (editing && ref.current) {
-			ref.current.focus();
-			const len = ref.current.value.length;
-			ref.current.setSelectionRange(len, len);
-		}
-	}, [editing]);
+		return () => {
+			if (debounceRef.current) clearTimeout(debounceRef.current);
+		};
+	}, []);
 
-	async function commit() {
-		setEditing(false);
-		if (draft !== body) {
-			await onSave(draft);
-		}
-	}
-
-	if (editing) {
-		return (
-			<div className="relative">
-				<Textarea
-					ref={ref}
-					value={draft}
-					onChange={(e) => setDraft(e.target.value)}
-					onBlur={() => {
-						void commit();
-					}}
-					className="min-h-32 font-mono text-sm"
-				/>
-				{saving && (
-					<div className="absolute top-1 right-2 text-xs text-muted-foreground">
-						Saving…
-					</div>
-				)}
-			</div>
-		);
-	}
+	// Detect dark mode
+	const [dark, setDark] = useState(false);
+	useEffect(() => {
+		const root = document.documentElement;
+		const observer = new MutationObserver(() => {
+			setDark(root.classList.contains("dark"));
+		});
+		setDark(root.classList.contains("dark"));
+		observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+		return () => observer.disconnect();
+	}, []);
 
 	return (
-		<button
-			type="button"
-			onClick={() => setEditing(true)}
-			className="block w-full text-left rounded-sm px-2 py-1 -mx-2 cursor-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-			aria-label="Edit block"
-		>
-			{body.trim() ? (
-				<Markdown
-					body={body}
-					titles={titles}
-					orgId={orgId}
-					teamId={teamId}
-					excludeRefIds={excludeRefIds}
-				/>
-			) : (
-				<span className="text-sm text-muted-foreground italic">
-					(empty — click to edit)
-				</span>
+		<div className="relative">
+			<LiveEditor
+				doc={draft}
+				onChange={handleChange}
+				onBlur={handleBlur}
+				placeholder="(empty — click to edit)"
+				dark={dark}
+			/>
+			{saving && (
+				<div className="absolute top-1 right-2 text-xs text-muted-foreground">
+					Saving…
+				</div>
 			)}
-		</button>
+		</div>
 	);
 }

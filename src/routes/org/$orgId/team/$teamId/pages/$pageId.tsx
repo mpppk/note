@@ -1,20 +1,3 @@
-import {
-	closestCenter,
-	DndContext,
-	type DragEndEvent,
-	KeyboardSensor,
-	PointerSensor,
-	useSensor,
-	useSensors,
-} from "@dnd-kit/core";
-import {
-	arrayMove,
-	SortableContext,
-	sortableKeyboardCoordinates,
-	useSortable,
-	verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	createFileRoute,
@@ -22,11 +5,13 @@ import {
 	redirect,
 	useNavigate,
 } from "@tanstack/react-router";
-import { ExternalLink, MoreHorizontal } from "lucide-react";
+import { ExternalLink, MoreHorizontal, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { InlineBlockEditor } from "#/components/block-editor";
+import { PageEditor } from "#/components/page-editor";
 import { TitleManager } from "#/components/title-manager";
 import { Button } from "#/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -119,9 +104,28 @@ function PageDetailPage() {
 	const qc = useQueryClient();
 	const navigate = useNavigate();
 
+	// Dark mode detection (guard against SSR where document is not available)
+	const [dark, setDark] = useState(
+		() =>
+			typeof document !== "undefined" &&
+			document.documentElement.classList.contains("dark"),
+	);
+	useEffect(() => {
+		const observer = new MutationObserver(() => {
+			setDark(document.documentElement.classList.contains("dark"));
+		});
+		observer.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ["class"],
+		});
+		return () => observer.disconnect();
+	}, []);
+
 	const { data: page } = useQuery({
 		queryKey: ["page-embeds", pageId],
 		queryFn: () => getPageWithEmbeds({ data: { orgId, pageId } }),
+		// Poll every 30s for embed content updates (Phase 4 polling)
+		refetchInterval: 30_000,
 	});
 
 	const { data: org } = useQuery({
@@ -136,7 +140,6 @@ function PageDetailPage() {
 
 	const [orderedIds, setOrderedIds] = useState<string[] | null>(null);
 	const [titleDialogOpen, setTitleDialogOpen] = useState(false);
-	const [addSectionDialogOpen, setAddSectionDialogOpen] = useState(false);
 
 	useEffect(() => {
 		if (page) setOrderedIds(page.sections.map((s) => s.id));
@@ -148,30 +151,12 @@ function PageDetailPage() {
 		return m;
 	}, [page]);
 
-	const sensors = useSensors(
-		useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-		useSensor(KeyboardSensor, {
-			coordinateGetter: sortableKeyboardCoordinates,
-		}),
-	);
-
 	const reorder = useMutation({
 		mutationFn: (sectionIds: string[]) =>
 			reorderSections({ data: { orgId, pageId, sectionIds } }),
 		onSuccess: () =>
 			qc.invalidateQueries({ queryKey: ["page-embeds", pageId] }),
 	});
-
-	function handleDragEnd(e: DragEndEvent) {
-		const { active, over } = e;
-		if (!over || active.id === over.id || !orderedIds) return;
-		const oldIndex = orderedIds.indexOf(String(active.id));
-		const newIndex = orderedIds.indexOf(String(over.id));
-		if (oldIndex < 0 || newIndex < 0) return;
-		const next = arrayMove(orderedIds, oldIndex, newIndex);
-		setOrderedIds(next);
-		reorder.mutate(next);
-	}
 
 	const updateBody = useMutation({
 		mutationFn: async (vars: { sectionId: string; body: string }) => {
@@ -223,6 +208,13 @@ function PageDetailPage() {
 
 	if (!page || !orderedIds) return null;
 
+	const orderedSections = orderedIds
+		.map((id) => sectionsById.get(id))
+		.filter(Boolean) as SectionData[];
+
+	const textSections = orderedSections.filter((s) => s.type === "text");
+	const embedSections = orderedSections.filter((s) => s.type === "embed");
+
 	return (
 		<main className="mx-auto max-w-3xl px-4 py-10">
 			<div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
@@ -268,9 +260,6 @@ function PageDetailPage() {
 						<DropdownMenuItem onSelect={() => setTitleDialogOpen(true)}>
 							タイトルを編集
 						</DropdownMenuItem>
-						<DropdownMenuItem onSelect={() => setAddSectionDialogOpen(true)}>
-							セクション追加
-						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
 							className="text-destructive focus:text-destructive focus:bg-destructive/10"
@@ -303,169 +292,97 @@ function PageDetailPage() {
 				</DialogContent>
 			</Dialog>
 
-			<Dialog
-				open={addSectionDialogOpen}
-				onOpenChange={setAddSectionDialogOpen}
-			>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>セクション追加</DialogTitle>
-					</DialogHeader>
-					<AddSectionForm
-						orgId={orgId}
-						teamId={teamId}
-						pageId={pageId}
-						onSuccess={() => setAddSectionDialogOpen(false)}
-					/>
-				</DialogContent>
-			</Dialog>
+			<Card className="mb-6">
+				<CardHeader>
+					<CardTitle className="text-base">Sections</CardTitle>
+				</CardHeader>
+				<CardContent>
+					{orderedIds.length === 0 ? (
+						<p className="text-sm text-muted-foreground">
+							まだセクションがありません。下のフォームから追加してください。
+						</p>
+					) : (
+						<>
+							{/* Text sections: unified Live Preview editor */}
+							{textSections.length > 0 && (
+								<PageEditor
+									sections={textSections.map((s) => ({
+										id: s.id,
+										body: s.body,
+									}))}
+									onSave={(sectionId, body) =>
+										updateBody.mutateAsync({ sectionId, body })
+									}
+									onReorder={(newTextIds) => {
+										const newIds = [
+											...newTextIds,
+											...embedSections.map((s) => s.id),
+										];
+										setOrderedIds(newIds);
+										reorder.mutate(newIds);
+									}}
+									dark={dark}
+									titles={teamTitles ?? []}
+									orgId={orgId}
+									teamId={teamId}
+									excludeRefIds={[pageId]}
+								/>
+							)}
 
-			<div className="mb-6">
-				{orderedIds.length === 0 ? (
-					<p className="text-sm text-muted-foreground">
-						まだセクションがありません。
-					</p>
-				) : (
-					<DndContext
-						sensors={sensors}
-						collisionDetection={closestCenter}
-						onDragEnd={handleDragEnd}
-					>
-						<SortableContext
-							items={orderedIds}
-							strategy={verticalListSortingStrategy}
-						>
-							<ul className="space-y-0">
-								{orderedIds.map((sid) => {
-									const s = sectionsById.get(sid);
-									if (!s) return null;
-									return (
-										<SortableSection
-											key={s.id}
-											section={s}
+							{/* Embed sections: shown as expandable inline blocks */}
+							{embedSections.map((s) => (
+								<div key={s.id} className="mt-4">
+									<div className="flex items-center justify-between gap-2 mb-1 text-xs text-muted-foreground">
+										<span className="font-medium">
+											📎 {s.embedPage?.titles[0] ?? s.embedPageId ?? "(embed)"}
+										</span>
+										<div className="flex items-center gap-1">
+											{s.embedPageId && (
+												<Link
+													to="/org/$orgId/team/$teamId/pages/$pageId"
+													params={{
+														orgId,
+														teamId,
+														pageId: s.embedPageId,
+													}}
+													className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors"
+												>
+													<ExternalLink className="h-3 w-3" />
+													開く
+												</Link>
+											)}
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												className="h-6 text-xs text-muted-foreground hover:text-destructive px-1"
+												onClick={() => removeSec.mutate(s.id)}
+											>
+												削除
+											</Button>
+										</div>
+									</div>
+									{s.embedPage ? (
+										<EmbedPageView
+											embedPage={s.embedPage}
 											orgId={orgId}
 											teamId={teamId}
 											titles={teamTitles ?? []}
-											onSave={(body) =>
-												updateBody.mutateAsync({
-													sectionId: s.id,
-													body,
-												})
-											}
-											onRemove={() => removeSec.mutate(s.id)}
 										/>
-									);
-								})}
-							</ul>
-						</SortableContext>
-					</DndContext>
-				)}
-			</div>
+									) : (
+										<p className="text-sm text-muted-foreground italic">
+											(embedded page was deleted)
+										</p>
+									)}
+								</div>
+							))}
+						</>
+					)}
+				</CardContent>
+			</Card>
+
+			<AddSectionForm orgId={orgId} teamId={teamId} pageId={pageId} />
 		</main>
-	);
-}
-
-type SortableSectionProps = {
-	section: SectionData;
-	orgId: string;
-	teamId: string;
-	titles: { title: string; refId: string }[];
-	onSave: (body: string) => Promise<void>;
-	onRemove: () => void;
-};
-
-function SortableSection({
-	section,
-	orgId,
-	teamId,
-	titles,
-	onSave,
-	onRemove,
-}: SortableSectionProps) {
-	const {
-		attributes,
-		listeners,
-		setNodeRef,
-		transform,
-		transition,
-		isDragging,
-	} = useSortable({ id: section.id });
-
-	const style = {
-		transform: CSS.Transform.toString(transform),
-		transition,
-		opacity: isDragging ? 0.5 : 1,
-	};
-
-	return (
-		<li
-			ref={setNodeRef}
-			style={style}
-			className="group relative rounded-md transition-colors hover:bg-muted/50 focus-within:bg-muted/30"
-		>
-			<div className="flex items-center justify-between gap-2 px-3 pt-2 pb-0.5">
-				<div className="flex items-center gap-2 min-w-0 flex-1">
-					<button
-						type="button"
-						className="cursor-grab text-muted-foreground hover:text-foreground select-none touch-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
-						aria-label="Drag to reorder"
-						{...attributes}
-						{...listeners}
-					>
-						⋮⋮
-					</button>
-					{section.type === "embed" && section.embedPage && (
-						<span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-							embed: {section.embedPage.titles[0] ?? "(no title)"}
-						</span>
-					)}
-				</div>
-				<div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-					{section.type === "embed" && section.embedPageId && (
-						<Link
-							to="/org/$orgId/team/$teamId/pages/$pageId"
-							params={{ orgId, teamId, pageId: section.embedPageId }}
-							className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
-							aria-label="Go to embedded page"
-						>
-							<ExternalLink className="h-3.5 w-3.5" />
-						</Link>
-					)}
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						className="h-7 text-xs text-muted-foreground hover:text-destructive"
-						onClick={onRemove}
-					>
-						Remove
-					</Button>
-				</div>
-			</div>
-			<div className="px-3 pb-2 pt-0.5">
-				{section.type === "text" ? (
-					<InlineBlockEditor
-						body={section.body}
-						onSave={onSave}
-						titles={titles}
-						orgId={orgId}
-						teamId={teamId}
-						excludeRefIds={[]}
-					/>
-				) : section.embedPage ? (
-					<EmbedPageView
-						embedPage={section.embedPage}
-						orgId={orgId}
-						teamId={teamId}
-						titles={titles}
-					/>
-				) : (
-					<p className="text-sm text-muted-foreground italic">
-						(embedded page was deleted)
-					</p>
-				)}
-			</div>
-		</li>
 	);
 }
 
@@ -532,12 +449,10 @@ function AddSectionForm({
 	orgId,
 	teamId,
 	pageId,
-	onSuccess,
 }: {
 	orgId: string;
 	teamId: string;
 	pageId: string;
-	onSuccess?: () => void;
 }) {
 	const qc = useQueryClient();
 	const [mode, setMode] = useState<"text" | "embed">("text");
@@ -557,7 +472,6 @@ function AddSectionForm({
 			setBody("");
 			setError(null);
 			qc.invalidateQueries({ queryKey: ["page-embeds", pageId] });
-			onSuccess?.();
 		},
 		onError: (e: Error) => setError(e.message),
 	});
@@ -568,7 +482,6 @@ function AddSectionForm({
 		onSuccess: () => {
 			setError(null);
 			qc.invalidateQueries({ queryKey: ["page-embeds", pageId] });
-			onSuccess?.();
 		},
 		onError: (e: Error) => setError(e.message),
 	});
@@ -581,93 +494,101 @@ function AddSectionForm({
 	});
 
 	return (
-		<div className="flex flex-col gap-3">
-			<div className="flex gap-2 text-sm">
-				<button
-					type="button"
-					className={`px-3 py-1 rounded-md border ${
-						mode === "text"
-							? "border-primary bg-primary text-primary-foreground"
-							: "border-border"
-					}`}
-					onClick={() => setMode("text")}
-				>
-					Text
-				</button>
-				<button
-					type="button"
-					className={`px-3 py-1 rounded-md border ${
-						mode === "embed"
-							? "border-primary bg-primary text-primary-foreground"
-							: "border-border"
-					}`}
-					onClick={() => setMode("embed")}
-				>
-					Embed Page
-				</button>
-			</div>
-
-			{mode === "text" ? (
-				<>
-					<textarea
-						className="min-h-24 w-full rounded-md border border-border px-3 py-2 text-sm font-mono bg-background"
-						placeholder="Markdown text..."
-						value={body}
-						onChange={(e) => setBody(e.target.value)}
-					/>
-					{error && <p className="text-sm text-destructive">{error}</p>}
-					<Button
+		<Card>
+			<CardHeader>
+				<CardTitle className="text-base flex items-center gap-2">
+					<Plus className="h-4 w-4" />
+					Add Section
+				</CardTitle>
+			</CardHeader>
+			<CardContent className="flex flex-col gap-3">
+				<div className="flex gap-2 text-sm">
+					<button
 						type="button"
-						disabled={!body.trim() || addText.isPending}
-						onClick={() => addText.mutate()}
+						className={`px-3 py-1 rounded-md border ${
+							mode === "text"
+								? "border-primary bg-primary text-primary-foreground"
+								: "border-border"
+						}`}
+						onClick={() => setMode("text")}
 					>
-						Add Text Section
-					</Button>
-				</>
-			) : (
-				<>
-					<Input
-						type="text"
-						placeholder="ページをタイトルで検索"
-						value={filter}
-						onChange={(e) => setFilter(e.target.value)}
-					/>
-					{error && <p className="text-sm text-destructive">{error}</p>}
-					<ul className="space-y-1 max-h-80 overflow-auto">
-						{filtered.map((p) => (
-							<li
-								key={p.id}
-								className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
-							>
-								<div className="min-w-0 flex-1">
-									<div className="font-medium text-sm truncate">
-										{p.titles[0] ?? "(no title)"}
-									</div>
-									{p.titles.length > 1 && (
-										<div className="text-xs text-muted-foreground truncate">
-											aliases: {p.titles.slice(1).join(", ")}
-										</div>
-									)}
-								</div>
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									onClick={() => addEmbed.mutate(p.id)}
-									disabled={addEmbed.isPending}
+						Text
+					</button>
+					<button
+						type="button"
+						className={`px-3 py-1 rounded-md border ${
+							mode === "embed"
+								? "border-primary bg-primary text-primary-foreground"
+								: "border-border"
+						}`}
+						onClick={() => setMode("embed")}
+					>
+						Embed Page
+					</button>
+				</div>
+
+				{mode === "text" ? (
+					<>
+						<textarea
+							className="min-h-24 w-full rounded-md border border-border px-3 py-2 text-sm font-mono bg-background"
+							placeholder="Markdown text..."
+							value={body}
+							onChange={(e) => setBody(e.target.value)}
+						/>
+						{error && <p className="text-sm text-destructive">{error}</p>}
+						<Button
+							type="button"
+							disabled={!body.trim() || addText.isPending}
+							onClick={() => addText.mutate()}
+						>
+							Add Text Section
+						</Button>
+					</>
+				) : (
+					<>
+						<Input
+							type="text"
+							placeholder="ページをタイトルで検索"
+							value={filter}
+							onChange={(e) => setFilter(e.target.value)}
+						/>
+						{error && <p className="text-sm text-destructive">{error}</p>}
+						<ul className="space-y-1 max-h-80 overflow-auto">
+							{filtered.map((p) => (
+								<li
+									key={p.id}
+									className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
 								>
-									Embed
-								</Button>
-							</li>
-						))}
-						{filtered.length === 0 && (
-							<li className="text-sm text-muted-foreground">
-								該当するページがありません。
-							</li>
-						)}
-					</ul>
-				</>
-			)}
-		</div>
+									<div className="min-w-0 flex-1">
+										<div className="font-medium text-sm truncate">
+											{p.titles[0] ?? "(no title)"}
+										</div>
+										{p.titles.length > 1 && (
+											<div className="text-xs text-muted-foreground truncate">
+												aliases: {p.titles.slice(1).join(", ")}
+											</div>
+										)}
+									</div>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={() => addEmbed.mutate(p.id)}
+										disabled={addEmbed.isPending}
+									>
+										Embed
+									</Button>
+								</li>
+							))}
+							{filtered.length === 0 && (
+								<li className="text-sm text-muted-foreground">
+									該当するページがありません。
+								</li>
+							)}
+						</ul>
+					</>
+				)}
+			</CardContent>
+		</Card>
 	);
 }
