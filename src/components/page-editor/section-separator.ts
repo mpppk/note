@@ -7,31 +7,85 @@ import {
 	type ViewUpdate,
 	WidgetType,
 } from "@codemirror/view";
-import { sectionRangesField } from "./section-state";
+import { moveSectionEffect, sectionRangesField } from "./section-state";
 
 /**
- * Widget rendered between sections as a visual divider.
+ * Widget rendered between sections as a visual divider with reorder buttons.
+ * `sectionIndex` is the 0-based index of the section ABOVE this separator.
  */
 class SectionSeparatorWidget extends WidgetType {
-	toDOM(): HTMLElement {
+	constructor(private readonly sectionIndex: number) {
+		super();
+	}
+
+	eq(other: SectionSeparatorWidget): boolean {
+		return this.sectionIndex === other.sectionIndex;
+	}
+
+	toDOM(view: EditorView): HTMLElement {
 		const el = document.createElement("div");
 		el.className = "cm-section-separator";
-		el.setAttribute("aria-hidden", "true");
+
+		const btns = document.createElement("div");
+		btns.className = "cm-section-separator-btns";
+		btns.style.opacity = "0";
+		btns.style.transition = "opacity 0.15s";
+
+		const upBtn = document.createElement("button");
+		upBtn.type = "button";
+		upBtn.title = "セクションを上に移動";
+		upBtn.textContent = "↑";
+		upBtn.className = "cm-section-separator-btn";
+		upBtn.addEventListener("click", (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			// Move the section BELOW this separator UP (swap with section above)
+			view.dispatch({
+				effects: moveSectionEffect.of({
+					fromIndex: this.sectionIndex + 1,
+					toIndex: this.sectionIndex,
+				}),
+			});
+		});
+
+		const downBtn = document.createElement("button");
+		downBtn.type = "button";
+		downBtn.title = "セクションを下に移動";
+		downBtn.textContent = "↓";
+		downBtn.className = "cm-section-separator-btn";
+		downBtn.addEventListener("click", (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			// Move the section ABOVE this separator DOWN (swap with section below)
+			view.dispatch({
+				effects: moveSectionEffect.of({
+					fromIndex: this.sectionIndex,
+					toIndex: this.sectionIndex + 1,
+				}),
+			});
+		});
+
+		btns.appendChild(upBtn);
+		btns.appendChild(downBtn);
+		el.appendChild(btns);
+
+		// Show/hide buttons on hover
+		el.addEventListener("mouseenter", () => {
+			btns.style.opacity = "1";
+		});
+		el.addEventListener("mouseleave", () => {
+			btns.style.opacity = "0";
+		});
+
 		return el;
 	}
+
 	ignoreEvent(): boolean {
-		return true;
-	}
-	eq(): boolean {
+		// CodeMirror won't process events on this widget (e.g., cursor placement)
+		// Buttons still fire because they have direct DOM listeners.
 		return true;
 	}
 }
-
-const separatorWidget = Decoration.widget({
-	widget: new SectionSeparatorWidget(),
-	block: true,
-	side: 0,
-});
 
 /**
  * ViewPlugin that places separator widgets between sections.
@@ -63,10 +117,17 @@ function buildSeparatorDecorations(view: EditorView): DecorationSet {
 	for (let i = 0; i < ranges.length - 1; i++) {
 		const current = ranges[i];
 		const next = ranges[i + 1];
-		// Place separator at the midpoint of the gap between sections
-		const gapPos = current.to + 1; // position after section body, inside the \n\n gap
+		const gapPos = current.to + 1;
 		if (gapPos < next.from && gapPos <= view.state.doc.length) {
-			builder.add(gapPos, gapPos, separatorWidget);
+			builder.add(
+				gapPos,
+				gapPos,
+				Decoration.widget({
+					widget: new SectionSeparatorWidget(i),
+					block: true,
+					side: 0,
+				}),
+			);
 		}
 	}
 
@@ -74,16 +135,38 @@ function buildSeparatorDecorations(view: EditorView): DecorationSet {
 }
 
 /**
- * Styles for the section separator widget.
+ * Styles for the section separator widget and its reorder buttons.
  */
 const separatorStyles = EditorView.baseTheme({
 	".cm-section-separator": {
-		display: "block",
+		display: "flex",
+		alignItems: "center",
+		position: "relative",
 		height: "1px",
 		margin: "0.75rem 0",
 		background: "var(--color-border, rgba(127,127,127,0.3))",
 		cursor: "default",
-		pointerEvents: "none",
+	},
+	".cm-section-separator-btns": {
+		position: "absolute",
+		right: "0.5rem",
+		top: "-0.875rem",
+		display: "flex",
+		gap: "0.25rem",
+		background: "var(--color-background, #fff)",
+		borderRadius: "4px",
+		padding: "1px 2px",
+		boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+	},
+	".cm-section-separator-btn": {
+		background: "none",
+		border: "none",
+		cursor: "pointer",
+		color: "var(--color-muted-foreground, #6b7280)",
+		padding: "0 0.2rem",
+		fontSize: "0.75rem",
+		lineHeight: "1.25",
+		borderRadius: "3px",
 	},
 });
 

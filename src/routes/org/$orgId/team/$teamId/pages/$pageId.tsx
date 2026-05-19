@@ -343,6 +343,10 @@ function PageDetailPage() {
 							onSave={(sectionId, body) =>
 								updateBody.mutateAsync({ sectionId, body })
 							}
+							onReorder={(ids) => {
+								setOrderedIds(ids);
+								reorder.mutate(ids);
+							}}
 							dark={dark}
 							titles={teamTitles ?? []}
 							orgId={orgId}

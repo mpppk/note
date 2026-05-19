@@ -14,7 +14,13 @@ import {
 	lightTheme,
 } from "#/components/live-editor/theme";
 import { sectionSeparator } from "./section-separator";
-import { mergeSections, sectionRangesField, splitDoc } from "./section-state";
+import {
+	mergeSections,
+	moveSectionEffect,
+	sectionRangesField,
+	setSectionRangesEffect,
+	splitDoc,
+} from "./section-state";
 
 type SectionInput = {
 	id: string;
@@ -24,6 +30,8 @@ type SectionInput = {
 type PageEditorProps = {
 	sections: SectionInput[];
 	onSave: (sectionId: string, body: string) => Promise<void>;
+	/** Called when section order changes (for API persistence) */
+	onReorder?: (orderedSectionIds: string[]) => void;
 	dark?: boolean;
 	placeholder?: string;
 	/** Page titles for auto-link detection */
@@ -37,6 +45,7 @@ type PageEditorProps = {
 export function PageEditor({
 	sections,
 	onSave,
+	onReorder,
 	dark = false,
 	placeholder,
 	titles,
@@ -48,6 +57,7 @@ export function PageEditor({
 	const viewRef = useRef<EditorView | null>(null);
 	const sectionsRef = useRef(sections);
 	const onSaveRef = useRef(onSave);
+	const onReorderRef = useRef(onReorder);
 	const placeholderRef = useRef(placeholder);
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const lastSavedRef = useRef<Map<string, string>>(new Map());
@@ -67,6 +77,7 @@ export function PageEditor({
 	// Keep mutable refs up to date each render
 	sectionsRef.current = sections;
 	onSaveRef.current = onSave;
+	onReorderRef.current = onReorder;
 	placeholderRef.current = placeholder;
 
 	const saveChanges = useCallback((view: EditorView) => {
@@ -109,7 +120,54 @@ export function PageEditor({
 		const alComp = autoLinkCompartmentRef.current;
 
 		const updateListener = EditorView.updateListener.of((update) => {
+			// Handle moveSectionEffect: reorder sections and update doc
+			for (const tr of update.transactions) {
+				// Skip if this is already the reorder result transaction (prevents loop)
+				if (tr.effects.some((e) => e.is(setSectionRangesEffect))) continue;
+				for (const effect of tr.effects) {
+					if (effect.is(moveSectionEffect)) {
+						const { fromIndex, toIndex } = effect.value;
+						const ranges = update.view.state.field(sectionRangesField);
+						const docStr = update.view.state.doc.toString();
+						const sects = splitDoc(docStr, ranges);
+						if (
+							fromIndex < 0 ||
+							toIndex < 0 ||
+							fromIndex >= sects.length ||
+							toIndex >= sects.length ||
+							fromIndex === toIndex
+						)
+							continue;
+						// Move section
+						const newSects = [...sects];
+						const [moved] = newSects.splice(fromIndex, 1);
+						newSects.splice(toIndex, 0, moved);
+						const { doc: newDoc, ranges: newRanges } = mergeSections(newSects);
+						// Update lastSaved map to reflect new order
+						lastSavedRef.current = new Map(
+							newSects.map((s) => [s.id, s.body]),
+						);
+						update.view.dispatch({
+							changes: {
+								from: 0,
+								to: update.view.state.doc.length,
+								insert: newDoc,
+							},
+							effects: setSectionRangesEffect.of(newRanges),
+						});
+						onReorderRef.current?.(newSects.map((s) => s.id));
+					}
+				}
+			}
+
 			if (!update.docChanged) return;
+			// Skip auto-save when the change is a section reorder
+			if (
+				update.transactions.some((tr) =>
+					tr.effects.some((e) => e.is(setSectionRangesEffect)),
+				)
+			)
+				return;
 			if (debounceRef.current) clearTimeout(debounceRef.current);
 			debounceRef.current = setTimeout(() => saveChanges(update.view), 1500);
 		});
