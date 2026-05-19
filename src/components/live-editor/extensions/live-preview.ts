@@ -146,10 +146,8 @@ function processHeading(
 	const headingDeco = headingMarks[level - 1] ?? heading6Mark;
 
 	if (cursorInRange(view, from, to)) {
-		// Cursor on heading: keep `# ` visible, style the content
-		if (hideEnd < to) {
-			decorations.push({ from: hideEnd, to, deco: headingDeco });
-		}
+		// Cursor on heading: apply heading style to the full line (including `# ` prefix)
+		decorations.push({ from, to, deco: headingDeco });
 	} else {
 		// Cursor off heading: hide `# ` prefix and style content
 		decorations.push({ from: markNode.from, to: hideEnd, deco: hiddenMark });
