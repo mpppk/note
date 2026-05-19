@@ -122,9 +122,10 @@ function PageDetailPage() {
 	const navigate = useNavigate();
 
 	// Dark mode detection (guard against SSR where document is not available)
-	const [dark, setDark] = useState(() =>
-		typeof document !== "undefined" &&
-		document.documentElement.classList.contains("dark"),
+	const [dark, setDark] = useState(
+		() =>
+			typeof document !== "undefined" &&
+			document.documentElement.classList.contains("dark"),
 	);
 	useEffect(() => {
 		const observer = new MutationObserver(() => {
