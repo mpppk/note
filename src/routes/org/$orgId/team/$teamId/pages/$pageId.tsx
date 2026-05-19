@@ -450,7 +450,7 @@ function SortableSection({
 					</Button>
 				</div>
 			</div>
-			<div className="px-3 pb-2 pt-0.5">
+			<div className="pb-2 pt-0.5">
 				{section.type === "text" ? (
 					<InlineBlockEditor
 						body={section.body}
