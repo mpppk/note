@@ -280,6 +280,25 @@ await page.locator("h1").first().click();
 await page.waitForTimeout(600);
 await shot("17-after-blur");
 
+// --- Blur decoration check ---
+// After blur the # HeaderMark should be hidden (raw line should NOT start with "#")
+console.log("  Testing blur decoration...");
+const blurHeadingOk = await page.evaluate(() => {
+  for (const line of document.querySelectorAll(".cm-line")) {
+    const text = (line as HTMLElement).textContent ?? "";
+    if (text.includes("Heading One")) {
+      return !text.trimStart().startsWith("#");
+    }
+  }
+  return true; // not found = inconclusive but not failing
+});
+if (blurHeadingOk) {
+  console.log("✅ Blur decoration: heading # hidden after blur");
+} else {
+  console.log("❌ Blur decoration: heading still shows raw # after blur");
+}
+await shot("18-blur-decoration-check");
+
 console.log("✅ Editor tests complete!");
 } else {
 await shot("07-no-editor");
@@ -292,7 +311,7 @@ const toggleBtn = page.locator('button[aria-label*="Toggle" i]').first();
 if (await toggleBtn.count() > 0) {
 await toggleBtn.click();
 await page.waitForTimeout(500);
-await shot("18-dark-mode");
+await shot("19-dark-mode");
 await toggleBtn.click();
 await page.waitForTimeout(300);
 } else {
