@@ -252,6 +252,64 @@ export const addEmbedSection = createServerFn({ method: "POST" })
 		return { id };
 	});
 
+export const addEmbedSectionAfter = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.inputValidator(
+		z.object({
+			orgId: z.string(),
+			pageId: z.string(),
+			afterSectionId: z.string(),
+			embedPageId: z.string(),
+		}),
+	)
+	.handler(async ({ data, context }) => {
+		await requireOrgMember(data.orgId, context.user.id);
+		const [target] = await db
+			.select()
+			.from(pages)
+			.where(eq(pages.id, data.embedPageId))
+			.limit(1);
+		if (!target) throw new Error("Embed target page not found");
+		const [afterSection] = await db
+			.select({ order: pageSections.order })
+			.from(pageSections)
+			.where(
+				and(
+					eq(pageSections.id, data.afterSectionId),
+					eq(pageSections.pageId, data.pageId),
+				),
+			)
+			.limit(1);
+		if (!afterSection) throw new Error("Anchor section not found");
+		const [nextSection] = await db
+			.select({ order: pageSections.order })
+			.from(pageSections)
+			.where(
+				and(
+					eq(pageSections.pageId, data.pageId),
+					gt(pageSections.order, afterSection.order),
+				),
+			)
+			.orderBy(asc(pageSections.order))
+			.limit(1);
+		const newOrder = nextSection
+			? (afterSection.order + nextSection.order) / 2
+			: afterSection.order + 1024;
+		const id = crypto.randomUUID();
+		await db.insert(pageSections).values({
+			id,
+			pageId: data.pageId,
+			type: "embed",
+			embedPageId: data.embedPageId,
+			order: newOrder,
+		});
+		await db
+			.update(pages)
+			.set({ updatedAt: new Date() })
+			.where(eq(pages.id, data.pageId));
+		return { id };
+	});
+
 export const removeSection = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])
 	.inputValidator(

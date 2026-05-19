@@ -9,6 +9,7 @@ import {
 } from "#/components/live-editor/extensions/auto-link";
 import {
 	createHeadingAutocompleteCompartment,
+	embedSelectEffect,
 	headingAutocompleteConfig,
 	headingAutocompleteExtension,
 } from "#/components/live-editor/extensions/heading-autocomplete";
@@ -43,6 +44,11 @@ type PageEditorProps = {
 	onAddSectionAfter?: (afterSectionId: string, body: string) => Promise<string>;
 	/** Called to delete a section (used when merging heading sections). */
 	onDeleteSection?: (sectionId: string) => Promise<void>;
+	/** Called when a heading autocomplete selection embeds a page. */
+	onEmbedSelect?: (
+		afterSectionId: string,
+		embedPageId: string,
+	) => Promise<void>;
 	dark?: boolean;
 	placeholder?: string;
 	/** Page titles for auto-link detection */
@@ -59,6 +65,7 @@ export function PageEditor({
 	onReorder,
 	onAddSectionAfter,
 	onDeleteSection,
+	onEmbedSelect,
 	dark = false,
 	placeholder,
 	titles,
@@ -73,6 +80,7 @@ export function PageEditor({
 	const onReorderRef = useRef(onReorder);
 	const onAddSectionAfterRef = useRef(onAddSectionAfter);
 	const onDeleteSectionRef = useRef(onDeleteSection);
+	const onEmbedSelectRef = useRef(onEmbedSelect);
 	const reconciliationInProgressRef = useRef(false);
 	const placeholderRef = useRef(placeholder);
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -99,6 +107,7 @@ export function PageEditor({
 	onReorderRef.current = onReorder;
 	onAddSectionAfterRef.current = onAddSectionAfter;
 	onDeleteSectionRef.current = onDeleteSection;
+	onEmbedSelectRef.current = onEmbedSelect;
 	placeholderRef.current = placeholder;
 
 	const saveChanges = useCallback((view: EditorView) => {
@@ -220,6 +229,18 @@ export function PageEditor({
 				// Skip if this is already the reorder result transaction (prevents loop)
 				if (tr.effects.some((e) => e.is(setSectionRangesEffect))) continue;
 				for (const effect of tr.effects) {
+					if (effect.is(embedSelectEffect)) {
+						const { refId, lineFrom } = effect.value;
+						const ranges = tr.startState.field(sectionRangesField);
+						const section = ranges.find(
+							(r) => r.from <= lineFrom && lineFrom <= r.to,
+						);
+						if (section) {
+							onEmbedSelectRef
+								.current?.(section.id, refId)
+								.catch(console.error);
+						}
+					}
 					if (effect.is(moveSectionEffect)) {
 						const { fromIndex, toIndex } = effect.value;
 						const ranges = update.view.state.field(sectionRangesField);

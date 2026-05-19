@@ -4,11 +4,12 @@ import {
 	type CompletionContext,
 	type CompletionResult,
 } from "@codemirror/autocomplete";
-import {
-	Compartment,
-	type Extension,
-	type StateEffect,
-} from "@codemirror/state";
+import { Compartment, type Extension, StateEffect } from "@codemirror/state";
+
+export const embedSelectEffect = StateEffect.define<{
+	refId: string;
+	lineFrom: number;
+}>();
 
 export type HeadingAutocompleteTitleEntry = {
 	title: string;
@@ -23,6 +24,14 @@ function makeHeadingCompleteSource(titles: HeadingAutocompleteTitleEntry[]) {
 		label: t.title,
 		type: "text",
 		detail: "page",
+		apply(view, _completion, from, _to) {
+			const line = view.state.doc.lineAt(from);
+			const delTo = line.to < view.state.doc.length ? line.to + 1 : line.to;
+			view.dispatch({
+				changes: { from: line.from, to: delTo, insert: "" },
+				effects: embedSelectEffect.of({ refId: t.refId, lineFrom: line.from }),
+			});
+		},
 	}));
 
 	return function headingComplete(
