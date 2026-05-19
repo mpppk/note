@@ -11,7 +11,13 @@
 	],
 	"main": "@tanstack/react-start/server-entry",
 	"observability": {
-		"enabled": true
+		"logs": {
+			"enabled": true,
+			"invocation_logs": true
+		},
+		"traces": {
+			"enabled": false
+		}
 	},
 	"upload_source_maps": true,
 	"preview_urls": true,
