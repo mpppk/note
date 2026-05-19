@@ -215,7 +215,7 @@ function PageDetailPage() {
 			qc.invalidateQueries({ queryKey: ["pages", teamId] });
 			qc.invalidateQueries({ queryKey: ["team-titles", teamId] });
 			navigate({
-				to: "/org/$orgId/team/$teamId/pages",
+				to: "/org/$orgId/team/$teamId",
 				params: { orgId, teamId },
 			});
 		},
@@ -244,14 +244,6 @@ function PageDetailPage() {
 					className="hover:text-foreground transition-colors"
 				>
 					Team
-				</Link>
-				<span>/</span>
-				<Link
-					to="/org/$orgId/team/$teamId/pages"
-					params={{ orgId, teamId }}
-					className="hover:text-foreground transition-colors"
-				>
-					Pages
 				</Link>
 				<span>/</span>
 				<span className="font-medium text-foreground truncate">
