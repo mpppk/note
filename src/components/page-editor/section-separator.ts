@@ -1,10 +1,12 @@
-import { RangeSetBuilder } from "@codemirror/state";
+import {
+	type EditorState,
+	RangeSetBuilder,
+	StateField,
+} from "@codemirror/state";
 import {
 	Decoration,
 	type DecorationSet,
 	EditorView,
-	ViewPlugin,
-	type ViewUpdate,
 	WidgetType,
 } from "@codemirror/view";
 import { moveSectionEffect, sectionRangesField } from "./section-state";
@@ -101,38 +103,15 @@ class SectionSeparatorWidget extends WidgetType {
 	}
 }
 
-/**
- * ViewPlugin that places separator widgets between sections.
- */
-const sectionSeparatorPlugin = ViewPlugin.fromClass(
-	class {
-		decorations: DecorationSet;
-		constructor(view: EditorView) {
-			this.decorations = buildSeparatorDecorations(view);
-		}
-		update(update: ViewUpdate) {
-			if (
-				update.docChanged ||
-				update.viewportChanged ||
-				update.state.field(sectionRangesField) !==
-					update.startState.field(sectionRangesField)
-			) {
-				this.decorations = buildSeparatorDecorations(update.view);
-			}
-		}
-	},
-	{ decorations: (v) => v.decorations },
-);
-
-function buildSeparatorDecorations(view: EditorView): DecorationSet {
+function buildSeparatorDecorations(state: EditorState): DecorationSet {
 	const builder = new RangeSetBuilder<Decoration>();
-	const ranges = view.state.field(sectionRangesField);
+	const ranges = state.field(sectionRangesField);
 
 	for (let i = 0; i < ranges.length - 1; i++) {
 		const current = ranges[i];
 		const next = ranges[i + 1];
 		const gapPos = current.to + 1;
-		if (gapPos < next.from && gapPos <= view.state.doc.length) {
+		if (gapPos < next.from && gapPos <= state.doc.length) {
 			builder.add(
 				gapPos,
 				gapPos,
@@ -147,6 +126,28 @@ function buildSeparatorDecorations(view: EditorView): DecorationSet {
 
 	return builder.finish();
 }
+
+/**
+ * StateField that provides block separator decorations between sections.
+ * Block decorations must be provided via StateField + EditorView.decorations,
+ * not via ViewPlugin (which only supports inline decorations).
+ */
+const sectionSeparatorField = StateField.define<DecorationSet>({
+	create(state) {
+		return buildSeparatorDecorations(state);
+	},
+	update(decorations, tr) {
+		if (
+			tr.docChanged ||
+			tr.state.field(sectionRangesField) !==
+				tr.startState.field(sectionRangesField)
+		) {
+			return buildSeparatorDecorations(tr.state);
+		}
+		return decorations.map(tr.changes);
+	},
+	provide: (f) => EditorView.decorations.from(f),
+});
 
 /**
  * Styles for the section separator widget and its reorder buttons.
@@ -192,5 +193,5 @@ const separatorStyles = EditorView.baseTheme({
 });
 
 export function sectionSeparator() {
-	return [sectionRangesField, sectionSeparatorPlugin, separatorStyles];
+	return [sectionRangesField, sectionSeparatorField, separatorStyles];
 }
