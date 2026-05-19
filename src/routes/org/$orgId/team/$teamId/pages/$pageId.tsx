@@ -311,7 +311,10 @@ function PageDetailPage() {
 				</DialogContent>
 			</Dialog>
 
-			<Dialog open={addSectionDialogOpen} onOpenChange={setAddSectionDialogOpen}>
+			<Dialog
+				open={addSectionDialogOpen}
+				onOpenChange={setAddSectionDialogOpen}
+			>
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>セクション追加</DialogTitle>
