@@ -25,6 +25,7 @@ import {
 import { ExternalLink, MoreHorizontal, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { InlineBlockEditor } from "#/components/block-editor";
+import { PageEditor } from "#/components/page-editor";
 import { TitleManager } from "#/components/title-manager";
 import { Button } from "#/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card";
@@ -119,6 +120,22 @@ function PageDetailPage() {
 	const { orgId, teamId, pageId } = Route.useParams();
 	const qc = useQueryClient();
 	const navigate = useNavigate();
+
+	// Dark mode detection (guard against SSR where document is not available)
+	const [dark, setDark] = useState(() =>
+		typeof document !== "undefined" &&
+		document.documentElement.classList.contains("dark"),
+	);
+	useEffect(() => {
+		const observer = new MutationObserver(() => {
+			setDark(document.documentElement.classList.contains("dark"));
+		});
+		observer.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ["class"],
+		});
+		return () => observer.disconnect();
+	}, []);
 
 	const { data: page } = useQuery({
 		queryKey: ["page-embeds", pageId],
@@ -223,6 +240,12 @@ function PageDetailPage() {
 
 	if (!page || !orderedIds) return null;
 
+	const hasEmbeds = page.sections.some((s) => s.type === "embed");
+
+	const orderedSections = orderedIds
+		.map((id) => sectionsById.get(id))
+		.filter(Boolean) as SectionData[];
+
 	return (
 		<main className="mx-auto max-w-3xl px-4 py-10">
 			<div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
@@ -309,6 +332,18 @@ function PageDetailPage() {
 						<p className="text-sm text-muted-foreground">
 							まだセクションがありません。下のフォームから追加してください。
 						</p>
+					) : !hasEmbeds ? (
+						// Single unified editor for text-only pages
+						<PageEditor
+							sections={orderedSections.map((s) => ({
+								id: s.id,
+								body: s.body,
+							}))}
+							onSave={(sectionId, body) =>
+								updateBody.mutateAsync({ sectionId, body })
+							}
+							dark={dark}
+						/>
 					) : (
 						<DndContext
 							sensors={sensors}

@@ -37,6 +37,9 @@ const heading4Mark = Decoration.mark({ class: "cm-md-heading4" });
 const heading5Mark = Decoration.mark({ class: "cm-md-heading5" });
 const heading6Mark = Decoration.mark({ class: "cm-md-heading6" });
 const codeBlockMark = Decoration.mark({ class: "cm-md-code-block" });
+const listBulletMark = Decoration.mark({ class: "cm-md-list-bullet" });
+const listOrderedMark = Decoration.mark({ class: "cm-md-list-ordered" });
+const listItemMark = Decoration.mark({ class: "cm-md-list-item" });
 
 const headingMarks = [
 	heading1Mark,
@@ -114,6 +117,11 @@ function processNode(
 	if (name === "FencedCode") {
 		processCodeBlock(view, nodeRef.node, decorations);
 		return;
+	}
+
+	// --- Lists ---
+	if (name === "ListItem") {
+		processListItem(view, nodeRef.node, decorations);
 	}
 }
 
@@ -250,16 +258,16 @@ function processCodeBlock(
 		const openLine = view.state.doc.lineAt(openFence.from);
 		const closeLine = view.state.doc.lineAt(closeFence.from);
 
-		// Hide the opening fence line
+		// Hide the opening fence line (but not the newline — plugins can't replace line breaks)
 		decorations.push({
 			from: openLine.from,
-			to: Math.min(openLine.to + 1, view.state.doc.length),
+			to: openLine.to,
 			deco: hiddenMark,
 		});
 		// Hide the closing fence line
 		if (closeLine.from > openLine.from) {
 			decorations.push({
-				from: closeLine.from - 1,
+				from: closeLine.from,
 				to: closeLine.to,
 				deco: hiddenMark,
 			});
@@ -274,6 +282,34 @@ function processCodeBlock(
 				deco: codeBlockMark,
 			});
 		}
+	}
+}
+
+function processListItem(
+	view: EditorView,
+	node: SyntaxNode,
+	decorations: { from: number; to: number; deco: Decoration }[],
+) {
+	const { from, to } = node;
+	if (cursorInRange(view, from, to)) return;
+
+	// Find the ListMark child (the `- ` or `1. ` marker)
+	const markNode = node.getChild("ListMark");
+	if (!markNode) return;
+
+	// Detect if it's an ordered list by checking parent
+	const isOrdered = node.parent?.name === "OrderedList";
+	const itemMark = isOrdered ? listOrderedMark : listBulletMark;
+
+	// Style the marker (muted color for ordered; styled bullet for unordered)
+	decorations.push({ from: markNode.from, to: markNode.to, deco: itemMark });
+
+	// Style the content of the list item (after the marker + space)
+	const spaceAfterMark =
+		view.state.doc.sliceString(markNode.to, markNode.to + 1) === " " ? 1 : 0;
+	const contentFrom = markNode.to + spaceAfterMark;
+	if (contentFrom < to) {
+		decorations.push({ from: contentFrom, to, deco: listItemMark });
 	}
 }
 
@@ -360,6 +396,25 @@ const livePreviewStyles = EditorView.baseTheme({
 	},
 	".cm-md-list-marker": {
 		color: "var(--color-muted-foreground, #6b7280)",
+	},
+	".cm-md-list-bullet": {
+		color: "transparent",
+		display: "inline-block",
+		width: "1em",
+		position: "relative",
+		"&::before": {
+			content: '"•"',
+			color: "var(--color-muted-foreground, #6b7280)",
+			position: "absolute",
+			left: "0",
+		},
+	},
+	".cm-md-list-ordered": {
+		color: "var(--color-muted-foreground, #6b7280)",
+		fontWeight: "500",
+	},
+	".cm-md-list-item": {
+		display: "inline",
 	},
 });
 
