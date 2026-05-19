@@ -22,12 +22,11 @@ import {
 	redirect,
 	useNavigate,
 } from "@tanstack/react-router";
-import { ExternalLink, MoreHorizontal, Plus } from "lucide-react";
+import { ExternalLink, MoreHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { InlineBlockEditor } from "#/components/block-editor";
 import { TitleManager } from "#/components/title-manager";
 import { Button } from "#/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -137,6 +136,7 @@ function PageDetailPage() {
 
 	const [orderedIds, setOrderedIds] = useState<string[] | null>(null);
 	const [titleDialogOpen, setTitleDialogOpen] = useState(false);
+	const [addSectionDialogOpen, setAddSectionDialogOpen] = useState(false);
 
 	useEffect(() => {
 		if (page) setOrderedIds(page.sections.map((s) => s.id));
@@ -276,6 +276,9 @@ function PageDetailPage() {
 						<DropdownMenuItem onSelect={() => setTitleDialogOpen(true)}>
 							タイトルを編集
 						</DropdownMenuItem>
+						<DropdownMenuItem onSelect={() => setAddSectionDialogOpen(true)}>
+							セクション追加
+						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
 							className="text-destructive focus:text-destructive focus:bg-destructive/10"
@@ -308,54 +311,64 @@ function PageDetailPage() {
 				</DialogContent>
 			</Dialog>
 
-			<Card className="mb-6">
-				<CardHeader>
-					<CardTitle className="text-base">Sections</CardTitle>
-				</CardHeader>
-				<CardContent>
-					{orderedIds.length === 0 ? (
-						<p className="text-sm text-muted-foreground">
-							まだセクションがありません。下のフォームから追加してください。
-						</p>
-					) : (
-						<DndContext
-							sensors={sensors}
-							collisionDetection={closestCenter}
-							onDragEnd={handleDragEnd}
-						>
-							<SortableContext
-								items={orderedIds}
-								strategy={verticalListSortingStrategy}
-							>
-								<ul className="space-y-0">
-									{orderedIds.map((sid) => {
-										const s = sectionsById.get(sid);
-										if (!s) return null;
-										return (
-											<SortableSection
-												key={s.id}
-												section={s}
-												orgId={orgId}
-												teamId={teamId}
-												titles={teamTitles ?? []}
-												onSave={(body) =>
-													updateBody.mutateAsync({
-														sectionId: s.id,
-														body,
-													})
-												}
-												onRemove={() => removeSec.mutate(s.id)}
-											/>
-										);
-									})}
-								</ul>
-							</SortableContext>
-						</DndContext>
-					)}
-				</CardContent>
-			</Card>
+			<Dialog
+				open={addSectionDialogOpen}
+				onOpenChange={setAddSectionDialogOpen}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>セクション追加</DialogTitle>
+					</DialogHeader>
+					<AddSectionForm
+						orgId={orgId}
+						teamId={teamId}
+						pageId={pageId}
+						onSuccess={() => setAddSectionDialogOpen(false)}
+					/>
+				</DialogContent>
+			</Dialog>
 
-			<AddSectionForm orgId={orgId} teamId={teamId} pageId={pageId} />
+			<div className="mb-6">
+				{orderedIds.length === 0 ? (
+					<p className="text-sm text-muted-foreground">
+						まだセクションがありません。
+					</p>
+				) : (
+					<DndContext
+						sensors={sensors}
+						collisionDetection={closestCenter}
+						onDragEnd={handleDragEnd}
+					>
+						<SortableContext
+							items={orderedIds}
+							strategy={verticalListSortingStrategy}
+						>
+							<ul className="space-y-0">
+								{orderedIds.map((sid) => {
+									const s = sectionsById.get(sid);
+									if (!s) return null;
+									return (
+										<SortableSection
+											key={s.id}
+											section={s}
+											orgId={orgId}
+											teamId={teamId}
+											titles={teamTitles ?? []}
+											onSave={(body) =>
+												updateBody.mutateAsync({
+													sectionId: s.id,
+													body,
+												})
+											}
+											onRemove={() => removeSec.mutate(s.id)}
+										/>
+									);
+								})}
+							</ul>
+						</SortableContext>
+					</DndContext>
+				)}
+			</div>
 		</main>
 	);
 }
@@ -527,10 +540,12 @@ function AddSectionForm({
 	orgId,
 	teamId,
 	pageId,
+	onSuccess,
 }: {
 	orgId: string;
 	teamId: string;
 	pageId: string;
+	onSuccess?: () => void;
 }) {
 	const qc = useQueryClient();
 	const [mode, setMode] = useState<"text" | "embed">("text");
@@ -550,6 +565,7 @@ function AddSectionForm({
 			setBody("");
 			setError(null);
 			qc.invalidateQueries({ queryKey: ["page-embeds", pageId] });
+			onSuccess?.();
 		},
 		onError: (e: Error) => setError(e.message),
 	});
@@ -560,6 +576,7 @@ function AddSectionForm({
 		onSuccess: () => {
 			setError(null);
 			qc.invalidateQueries({ queryKey: ["page-embeds", pageId] });
+			onSuccess?.();
 		},
 		onError: (e: Error) => setError(e.message),
 	});
@@ -572,101 +589,93 @@ function AddSectionForm({
 	});
 
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle className="text-base flex items-center gap-2">
-					<Plus className="h-4 w-4" />
-					Add Section
-				</CardTitle>
-			</CardHeader>
-			<CardContent className="flex flex-col gap-3">
-				<div className="flex gap-2 text-sm">
-					<button
-						type="button"
-						className={`px-3 py-1 rounded-md border ${
-							mode === "text"
-								? "border-primary bg-primary text-primary-foreground"
-								: "border-border"
-						}`}
-						onClick={() => setMode("text")}
-					>
-						Text
-					</button>
-					<button
-						type="button"
-						className={`px-3 py-1 rounded-md border ${
-							mode === "embed"
-								? "border-primary bg-primary text-primary-foreground"
-								: "border-border"
-						}`}
-						onClick={() => setMode("embed")}
-					>
-						Embed Page
-					</button>
-				</div>
+		<div className="flex flex-col gap-3">
+			<div className="flex gap-2 text-sm">
+				<button
+					type="button"
+					className={`px-3 py-1 rounded-md border ${
+						mode === "text"
+							? "border-primary bg-primary text-primary-foreground"
+							: "border-border"
+					}`}
+					onClick={() => setMode("text")}
+				>
+					Text
+				</button>
+				<button
+					type="button"
+					className={`px-3 py-1 rounded-md border ${
+						mode === "embed"
+							? "border-primary bg-primary text-primary-foreground"
+							: "border-border"
+					}`}
+					onClick={() => setMode("embed")}
+				>
+					Embed Page
+				</button>
+			</div>
 
-				{mode === "text" ? (
-					<>
-						<textarea
-							className="min-h-24 w-full rounded-md border border-border px-3 py-2 text-sm font-mono bg-background"
-							placeholder="Markdown text..."
-							value={body}
-							onChange={(e) => setBody(e.target.value)}
-						/>
-						{error && <p className="text-sm text-destructive">{error}</p>}
-						<Button
-							type="button"
-							disabled={!body.trim() || addText.isPending}
-							onClick={() => addText.mutate()}
-						>
-							Add Text Section
-						</Button>
-					</>
-				) : (
-					<>
-						<Input
-							type="text"
-							placeholder="ページをタイトルで検索"
-							value={filter}
-							onChange={(e) => setFilter(e.target.value)}
-						/>
-						{error && <p className="text-sm text-destructive">{error}</p>}
-						<ul className="space-y-1 max-h-80 overflow-auto">
-							{filtered.map((p) => (
-								<li
-									key={p.id}
-									className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
-								>
-									<div className="min-w-0 flex-1">
-										<div className="font-medium text-sm truncate">
-											{p.titles[0] ?? "(no title)"}
-										</div>
-										{p.titles.length > 1 && (
-											<div className="text-xs text-muted-foreground truncate">
-												aliases: {p.titles.slice(1).join(", ")}
-											</div>
-										)}
+			{mode === "text" ? (
+				<>
+					<textarea
+						className="min-h-24 w-full rounded-md border border-border px-3 py-2 text-sm font-mono bg-background"
+						placeholder="Markdown text..."
+						value={body}
+						onChange={(e) => setBody(e.target.value)}
+					/>
+					{error && <p className="text-sm text-destructive">{error}</p>}
+					<Button
+						type="button"
+						disabled={!body.trim() || addText.isPending}
+						onClick={() => addText.mutate()}
+					>
+						Add Text Section
+					</Button>
+				</>
+			) : (
+				<>
+					<Input
+						type="text"
+						placeholder="ページをタイトルで検索"
+						value={filter}
+						onChange={(e) => setFilter(e.target.value)}
+					/>
+					{error && <p className="text-sm text-destructive">{error}</p>}
+					<ul className="space-y-1 max-h-80 overflow-auto">
+						{filtered.map((p) => (
+							<li
+								key={p.id}
+								className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
+							>
+								<div className="min-w-0 flex-1">
+									<div className="font-medium text-sm truncate">
+										{p.titles[0] ?? "(no title)"}
 									</div>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onClick={() => addEmbed.mutate(p.id)}
-										disabled={addEmbed.isPending}
-									>
-										Embed
-									</Button>
-								</li>
-							))}
-							{filtered.length === 0 && (
-								<li className="text-sm text-muted-foreground">
-									該当するページがありません。
-								</li>
-							)}
-						</ul>
-					</>
-				)}
-			</CardContent>
-		</Card>
+									{p.titles.length > 1 && (
+										<div className="text-xs text-muted-foreground truncate">
+											aliases: {p.titles.slice(1).join(", ")}
+										</div>
+									)}
+								</div>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => addEmbed.mutate(p.id)}
+									disabled={addEmbed.isPending}
+								>
+									Embed
+								</Button>
+							</li>
+						))}
+						{filtered.length === 0 && (
+							<li className="text-sm text-muted-foreground">
+								該当するページがありません。
+							</li>
+						)}
+					</ul>
+				</>
+			)}
+		</div>
 	);
 }
