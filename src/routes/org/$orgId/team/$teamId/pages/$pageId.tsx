@@ -6,9 +6,10 @@ import {
 	useNavigate,
 } from "@tanstack/react-router";
 import { ExternalLink, MoreHorizontal, Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { InlineBlockEditor } from "#/components/block-editor";
 import { PageEditor } from "#/components/page-editor";
+import { splitBodyAtAllH1H2 } from "#/components/page-editor/section-state";
 import { TitleManager } from "#/components/title-manager";
 import { Button } from "#/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card";
@@ -30,6 +31,7 @@ import { getSession } from "#/server/auth";
 import {
 	addEmbedSection,
 	addTextSection,
+	addTextSectionAfter,
 	addTitle,
 	deletePage,
 	getPageWithEmbeds,
@@ -176,6 +178,55 @@ function PageDetailPage() {
 			qc.invalidateQueries({ queryKey: ["page-embeds", pageId] }),
 	});
 
+	const addSectionAfter = useMutation({
+		mutationFn: (vars: { afterSectionId: string; body: string }) =>
+			addTextSectionAfter({
+				data: {
+					orgId,
+					pageId,
+					afterSectionId: vars.afterSectionId,
+					body: vars.body,
+				},
+			}),
+		// No query invalidation — the editor tracks the new section locally.
+		// The 30s poll provides eventual DB consistency.
+	});
+
+	const reconciledSectionIds = useRef(new Set<string>());
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: mutations and qc are stable references; reconciledSectionIds is a ref
+	useEffect(() => {
+		const textSections = (page?.sections ?? []).filter(
+			(s) => s.type === "text",
+		);
+		const toSplit = textSections.filter(
+			(s) =>
+				!reconciledSectionIds.current.has(s.id) &&
+				splitBodyAtAllH1H2(s.body).length > 1,
+		);
+		if (toSplit.length === 0) return;
+		for (const s of toSplit) reconciledSectionIds.current.add(s.id);
+
+		(async () => {
+			for (const section of toSplit) {
+				const bodies = splitBodyAtAllH1H2(section.body);
+				await updateBody.mutateAsync({
+					sectionId: section.id,
+					body: bodies[0],
+				});
+				let afterId = section.id;
+				for (const body of bodies.slice(1)) {
+					const result = await addSectionAfter.mutateAsync({
+						afterSectionId: afterId,
+						body,
+					});
+					afterId = result.id;
+				}
+			}
+			qc.invalidateQueries({ queryKey: ["page-embeds", pageId] });
+		})().catch(console.error);
+	}, [page]);
+
 	async function handleAddTitle(title: string) {
 		await addTitle({
 			data: { orgId, teamId, refId: pageId, title },
@@ -320,6 +371,16 @@ function PageDetailPage() {
 										];
 										setOrderedIds(newIds);
 										reorder.mutate(newIds);
+									}}
+									onAddSectionAfter={async (afterSectionId, body) => {
+										const result = await addSectionAfter.mutateAsync({
+											afterSectionId,
+											body,
+										});
+										return result.id;
+									}}
+									onDeleteSection={async (sectionId) => {
+										await removeSec.mutateAsync(sectionId);
 									}}
 									dark={dark}
 									titles={teamTitles ?? []}

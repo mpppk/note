@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import { and, asc, desc, eq, inArray, like, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, like, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "#/db";
 import { pageSections, pages, titles } from "#/db/schema";
@@ -155,6 +155,58 @@ export const addTextSection = createServerFn({ method: "POST" })
 			type: "text",
 			body: data.body,
 			order: nextOrder,
+		});
+		await db
+			.update(pages)
+			.set({ updatedAt: new Date() })
+			.where(eq(pages.id, data.pageId));
+		return { id };
+	});
+
+export const addTextSectionAfter = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.inputValidator(
+		z.object({
+			orgId: z.string(),
+			pageId: z.string(),
+			afterSectionId: z.string(),
+			body: z.string().default(""),
+		}),
+	)
+	.handler(async ({ data, context }) => {
+		await requireOrgMember(data.orgId, context.user.id);
+		const [afterSection] = await db
+			.select({ order: pageSections.order })
+			.from(pageSections)
+			.where(
+				and(
+					eq(pageSections.id, data.afterSectionId),
+					eq(pageSections.pageId, data.pageId),
+				),
+			)
+			.limit(1);
+		if (!afterSection) throw new Error("Anchor section not found");
+		const [nextSection] = await db
+			.select({ order: pageSections.order })
+			.from(pageSections)
+			.where(
+				and(
+					eq(pageSections.pageId, data.pageId),
+					gt(pageSections.order, afterSection.order),
+				),
+			)
+			.orderBy(asc(pageSections.order))
+			.limit(1);
+		const newOrder = nextSection
+			? (afterSection.order + nextSection.order) / 2
+			: afterSection.order + 1024;
+		const id = crypto.randomUUID();
+		await db.insert(pageSections).values({
+			id,
+			pageId: data.pageId,
+			type: "text",
+			body: data.body,
+			order: newOrder,
 		});
 		await db
 			.update(pages)
