@@ -13,17 +13,7 @@ export default function Header() {
 					niboshi-note
 				</Link>
 
-				<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-semibold">
-					<Link
-						to="/orgs"
-						className="relative text-muted-foreground no-underline transition-colors hover:text-foreground [&.active]:text-foreground"
-						activeProps={{ className: "active" }}
-					>
-						Organizations
-					</Link>
-				</div>
-
-				<div className="ml-auto flex items-center gap-2">
+<div className="ml-auto flex items-center gap-2">
 					<ThemeToggle />
 					<BetterAuthHeader />
 				</div>
