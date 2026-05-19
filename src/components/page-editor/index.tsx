@@ -45,7 +45,10 @@ type PageEditorProps = {
 	/** Called to delete a section (used when merging heading sections). */
 	onDeleteSection?: (sectionId: string) => Promise<void>;
 	/** Called when a heading autocomplete selection embeds a page. */
-	onEmbedSelect?: (afterSectionId: string, embedPageId: string) => Promise<void>;
+	onEmbedSelect?: (
+		afterSectionId: string,
+		embedPageId: string,
+	) => Promise<void>;
 	dark?: boolean;
 	placeholder?: string;
 	/** Page titles for auto-link detection */
@@ -233,9 +236,9 @@ export function PageEditor({
 							(r) => r.from <= lineFrom && lineFrom <= r.to,
 						);
 						if (section) {
-							onEmbedSelectRef.current?.(section.id, refId).catch(
-								console.error,
-							);
+							onEmbedSelectRef
+								.current?.(section.id, refId)
+								.catch(console.error);
 						}
 					}
 					if (effect.is(moveSectionEffect)) {

@@ -547,4 +547,3 @@ function EmbedPageView({
 		</div>
 	);
 }
-
