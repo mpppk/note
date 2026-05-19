@@ -192,6 +192,34 @@ const separatorStyles = EditorView.baseTheme({
 	},
 });
 
+/**
+ * Prevents the cursor from entering the "\n\n" separator gap between sections.
+ * Without this, ArrowDown from the end of section A lands on the second '\n'
+ * (the separator widget line), where Enter inserts into the gap rather than
+ * section A — so the content is never saved.
+ *
+ * The atomic range covers [gapPos, next.from) — only the second '\n' of the
+ * separator — leaving the cursor free at current.to (end of section A body).
+ */
+const sectionGapAtomicRanges = EditorView.atomicRanges.of((view) => {
+	const builder = new RangeSetBuilder<Decoration>();
+	const ranges = view.state.field(sectionRangesField);
+	for (let i = 0; i < ranges.length - 1; i++) {
+		const current = ranges[i];
+		const next = ranges[i + 1];
+		const gapPos = current.to + 1;
+		if (gapPos < next.from && gapPos <= view.state.doc.length) {
+			builder.add(gapPos, next.from, Decoration.mark({}));
+		}
+	}
+	return builder.finish();
+});
+
 export function sectionSeparator() {
-	return [sectionRangesField, sectionSeparatorField, separatorStyles];
+	return [
+		sectionRangesField,
+		sectionSeparatorField,
+		separatorStyles,
+		sectionGapAtomicRanges,
+	];
 }
