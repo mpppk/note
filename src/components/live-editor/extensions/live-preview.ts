@@ -169,12 +169,20 @@ function processEmphasis(
 
 	if (cursorInRange(view, from, to)) {
 		// Cursor on emphasis: keep markers visible, style the content
-		decorations.push({ from: from + markerLen, to: to - markerLen, deco: mark });
+		decorations.push({
+			from: from + markerLen,
+			to: to - markerLen,
+			deco: mark,
+		});
 	} else {
 		// Cursor off emphasis: hide markers and style content
 		decorations.push({ from, to: from + markerLen, deco: hiddenMark });
 		decorations.push({ from: to - markerLen, to, deco: hiddenMark });
-		decorations.push({ from: from + markerLen, to: to - markerLen, deco: mark });
+		decorations.push({
+			from: from + markerLen,
+			to: to - markerLen,
+			deco: mark,
+		});
 	}
 }
 
@@ -193,12 +201,28 @@ function processInlineCode(
 
 		if (cursorInRange(view, from, to)) {
 			// Cursor on inline code: keep backticks visible, style content
-			decorations.push({ from: openMark.to, to: closeMark.from, deco: inlineCodeMark });
+			decorations.push({
+				from: openMark.to,
+				to: closeMark.from,
+				deco: inlineCodeMark,
+			});
 		} else {
 			// Cursor off inline code: hide backticks and style content
-			decorations.push({ from: openMark.from, to: openMark.to, deco: hiddenMark });
-			decorations.push({ from: closeMark.from, to: closeMark.to, deco: hiddenMark });
-			decorations.push({ from: openMark.to, to: closeMark.from, deco: inlineCodeMark });
+			decorations.push({
+				from: openMark.from,
+				to: openMark.to,
+				deco: hiddenMark,
+			});
+			decorations.push({
+				from: closeMark.from,
+				to: closeMark.to,
+				deco: hiddenMark,
+			});
+			decorations.push({
+				from: openMark.to,
+				to: closeMark.from,
+				deco: inlineCodeMark,
+			});
 		}
 	}
 }
@@ -220,11 +244,23 @@ function processLink(
 
 		if (cursorInRange(view, from, to)) {
 			// Cursor on link: keep full syntax visible, style link text
-			decorations.push({ from: openBracket.to, to: closeBracket.from, deco: linkTextMark });
+			decorations.push({
+				from: openBracket.to,
+				to: closeBracket.from,
+				deco: linkTextMark,
+			});
 		} else {
 			// Cursor off link: hide `[`, `](url)` and style link text
-			decorations.push({ from: openBracket.from, to: openBracket.to, deco: hiddenMark });
-			decorations.push({ from: openBracket.to, to: closeBracket.from, deco: linkTextMark });
+			decorations.push({
+				from: openBracket.from,
+				to: openBracket.to,
+				deco: hiddenMark,
+			});
+			decorations.push({
+				from: openBracket.to,
+				to: closeBracket.from,
+				deco: linkTextMark,
+			});
 			decorations.push({ from: closeBracket.from, to, deco: hiddenMark });
 		}
 	}
@@ -253,16 +289,32 @@ function processCodeBlock(
 		if (cursorInRange(view, from, to)) {
 			// Cursor in code block: keep fence lines visible, style content
 			if (contentFrom < contentTo) {
-				decorations.push({ from: contentFrom, to: contentTo, deco: codeBlockMark });
+				decorations.push({
+					from: contentFrom,
+					to: contentTo,
+					deco: codeBlockMark,
+				});
 			}
 		} else {
 			// Cursor off code block: hide fence lines and style content
-			decorations.push({ from: openLine.from, to: openLine.to, deco: hiddenMark });
+			decorations.push({
+				from: openLine.from,
+				to: openLine.to,
+				deco: hiddenMark,
+			});
 			if (closeLine.from > openLine.from) {
-				decorations.push({ from: closeLine.from, to: closeLine.to, deco: hiddenMark });
+				decorations.push({
+					from: closeLine.from,
+					to: closeLine.to,
+					deco: hiddenMark,
+				});
 			}
 			if (contentFrom < contentTo) {
-				decorations.push({ from: contentFrom, to: contentTo, deco: codeBlockMark });
+				decorations.push({
+					from: contentFrom,
+					to: contentTo,
+					deco: codeBlockMark,
+				});
 			}
 		}
 	}
@@ -285,7 +337,11 @@ function processListItem(
 
 	if (cursorInRange(view, from, to)) {
 		// Cursor on list item: show raw marker with muted style, style content
-		decorations.push({ from: markNode.from, to: markNode.to, deco: listMarkerMark });
+		decorations.push({
+			from: markNode.from,
+			to: markNode.to,
+			deco: listMarkerMark,
+		});
 		if (contentFrom < to) {
 			decorations.push({ from: contentFrom, to, deco: listItemMark });
 		}
