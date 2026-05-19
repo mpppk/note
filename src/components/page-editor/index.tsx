@@ -7,6 +7,11 @@ import {
 	autoLinkStaticExtensions,
 	type TitleEntry,
 } from "#/components/live-editor/extensions/auto-link";
+import {
+	createHeadingAutocompleteCompartment,
+	headingAutocompleteConfig,
+	headingAutocompleteExtension,
+} from "#/components/live-editor/extensions/heading-autocomplete";
 import { livePreview } from "#/components/live-editor/extensions/live-preview";
 import {
 	baseTheme,
@@ -63,6 +68,9 @@ export function PageEditor({
 	const lastSavedRef = useRef<Map<string, string>>(new Map());
 	// Stable ref for the compartment (same instance across renders)
 	const autoLinkCompartmentRef = useRef(new Compartment());
+	const headingACCompartmentRef = useRef(
+		createHeadingAutocompleteCompartment(),
+	);
 
 	// Save status for UI feedback
 	const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">(
@@ -118,6 +126,7 @@ export function PageEditor({
 		);
 
 		const alComp = autoLinkCompartmentRef.current;
+		const haComp = headingACCompartmentRef.current;
 
 		const updateListener = EditorView.updateListener.of((update) => {
 			// Handle moveSectionEffect: reorder sections and update doc
@@ -195,6 +204,8 @@ export function PageEditor({
 				// Auto-link: static extensions always present; config in compartment
 				autoLinkStaticExtensions(),
 				alComp.of([]),
+				// Heading autocomplete
+				headingAutocompleteExtension(haComp, []),
 			],
 		});
 
@@ -230,6 +241,15 @@ export function PageEditor({
 			view.dispatch({ effects: alComp.reconfigure([]) });
 		}
 	}, [titles, orgId, teamId, excludeRefIds]);
+
+	// Reconfigure heading autocomplete when titles change
+	useEffect(() => {
+		const view = viewRef.current;
+		if (!view) return;
+		view.dispatch({
+			effects: headingAutocompleteConfig(headingACCompartmentRef.current, titles ?? []),
+		});
+	}, [titles]);
 
 	// Sync external section changes (e.g. after server re-fetch)
 	useEffect(() => {

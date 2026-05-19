@@ -69,13 +69,19 @@ class SectionSeparatorWidget extends WidgetType {
 		btns.appendChild(downBtn);
 		el.appendChild(btns);
 
-		// Show/hide buttons on hover
+		// Show/hide buttons on hover (mouse) or touch
 		el.addEventListener("mouseenter", () => {
 			btns.style.opacity = "1";
 		});
 		el.addEventListener("mouseleave", () => {
 			btns.style.opacity = "0";
 		});
+		// Touch: toggle visibility on tap on the separator bar
+		el.addEventListener("touchstart", (e) => {
+			e.stopPropagation();
+			const isVisible = btns.style.opacity === "1";
+			btns.style.opacity = isVisible ? "0" : "1";
+		}, { passive: true });
 
 		return el;
 	}
@@ -163,10 +169,17 @@ const separatorStyles = EditorView.baseTheme({
 		border: "none",
 		cursor: "pointer",
 		color: "var(--color-muted-foreground, #6b7280)",
-		padding: "0 0.2rem",
+		padding: "0.25rem 0.4rem",
 		fontSize: "0.75rem",
 		lineHeight: "1.25",
 		borderRadius: "3px",
+		// Touch-friendly minimum tap target (Phase 8)
+		minWidth: "1.75rem",
+		minHeight: "1.75rem",
+		display: "inline-flex",
+		alignItems: "center",
+		justifyContent: "center",
+		touchAction: "manipulation",
 	},
 });
 

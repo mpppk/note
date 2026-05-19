@@ -1,20 +1,3 @@
-import {
-	closestCenter,
-	DndContext,
-	type DragEndEvent,
-	KeyboardSensor,
-	PointerSensor,
-	useSensor,
-	useSensors,
-} from "@dnd-kit/core";
-import {
-	arrayMove,
-	SortableContext,
-	sortableKeyboardCoordinates,
-	useSortable,
-	verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	createFileRoute,
@@ -141,6 +124,8 @@ function PageDetailPage() {
 	const { data: page } = useQuery({
 		queryKey: ["page-embeds", pageId],
 		queryFn: () => getPageWithEmbeds({ data: { orgId, pageId } }),
+		// Poll every 30s for embed content updates (Phase 4 polling)
+		refetchInterval: 30_000,
 	});
 
 	const { data: org } = useQuery({
@@ -166,30 +151,12 @@ function PageDetailPage() {
 		return m;
 	}, [page]);
 
-	const sensors = useSensors(
-		useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-		useSensor(KeyboardSensor, {
-			coordinateGetter: sortableKeyboardCoordinates,
-		}),
-	);
-
 	const reorder = useMutation({
 		mutationFn: (sectionIds: string[]) =>
 			reorderSections({ data: { orgId, pageId, sectionIds } }),
 		onSuccess: () =>
 			qc.invalidateQueries({ queryKey: ["page-embeds", pageId] }),
 	});
-
-	function handleDragEnd(e: DragEndEvent) {
-		const { active, over } = e;
-		if (!over || active.id === over.id || !orderedIds) return;
-		const oldIndex = orderedIds.indexOf(String(active.id));
-		const newIndex = orderedIds.indexOf(String(over.id));
-		if (oldIndex < 0 || newIndex < 0) return;
-		const next = arrayMove(orderedIds, oldIndex, newIndex);
-		setOrderedIds(next);
-		reorder.mutate(next);
-	}
 
 	const updateBody = useMutation({
 		mutationFn: async (vars: { sectionId: string; body: string }) => {
@@ -241,11 +208,12 @@ function PageDetailPage() {
 
 	if (!page || !orderedIds) return null;
 
-	const hasEmbeds = page.sections.some((s) => s.type === "embed");
-
 	const orderedSections = orderedIds
 		.map((id) => sectionsById.get(id))
 		.filter(Boolean) as SectionData[];
+
+	const textSections = orderedSections.filter((s) => s.type === "text");
+	const embedSections = orderedSections.filter((s) => s.type === "embed");
 
 	return (
 		<main className="mx-auto max-w-3xl px-4 py-10">
@@ -333,170 +301,89 @@ function PageDetailPage() {
 						<p className="text-sm text-muted-foreground">
 							まだセクションがありません。下のフォームから追加してください。
 						</p>
-					) : !hasEmbeds ? (
-						// Single unified editor for text-only pages
-						<PageEditor
-							sections={orderedSections.map((s) => ({
-								id: s.id,
-								body: s.body,
-							}))}
-							onSave={(sectionId, body) =>
-								updateBody.mutateAsync({ sectionId, body })
-							}
-							onReorder={(ids) => {
-								setOrderedIds(ids);
-								reorder.mutate(ids);
-							}}
-							dark={dark}
-							titles={teamTitles ?? []}
-							orgId={orgId}
-							teamId={teamId}
-							excludeRefIds={[pageId]}
-						/>
 					) : (
-						<DndContext
-							sensors={sensors}
-							collisionDetection={closestCenter}
-							onDragEnd={handleDragEnd}
-						>
-							<SortableContext
-								items={orderedIds}
-								strategy={verticalListSortingStrategy}
-							>
-								<ul className="space-y-0">
-									{orderedIds.map((sid) => {
-										const s = sectionsById.get(sid);
-										if (!s) return null;
-										return (
-											<SortableSection
-												key={s.id}
-												section={s}
-												orgId={orgId}
-												teamId={teamId}
-												titles={teamTitles ?? []}
-												onSave={(body) =>
-													updateBody.mutateAsync({
-														sectionId: s.id,
-														body,
-													})
-												}
-												onRemove={() => removeSec.mutate(s.id)}
-											/>
-										);
-									})}
-								</ul>
-							</SortableContext>
-						</DndContext>
+					<>
+					{/* Text sections: unified Live Preview editor */}
+					{textSections.length > 0 && (
+					<PageEditor
+					sections={textSections.map((s) => ({
+					id: s.id,
+					body: s.body,
+					}))}
+					onSave={(sectionId, body) =>
+					updateBody.mutateAsync({ sectionId, body })
+					}
+					onReorder={(newTextIds) => {
+					const newIds = [
+					...newTextIds,
+					...embedSections.map((s) => s.id),
+					];
+					setOrderedIds(newIds);
+					reorder.mutate(newIds);
+					}}
+					dark={dark}
+					titles={teamTitles ?? []}
+					orgId={orgId}
+					teamId={teamId}
+					excludeRefIds={[pageId]}
+					/>
+					)}
+
+					{/* Embed sections: shown as expandable inline blocks */}
+					{embedSections.map((s) => (
+					<div key={s.id} className="mt-4">
+					<div className="flex items-center justify-between gap-2 mb-1 text-xs text-muted-foreground">
+					<span className="font-medium">
+					📎{" "}
+					{s.embedPage?.titles[0] ?? s.embedPageId ?? "(embed)"}
+					</span>
+					<div className="flex items-center gap-1">
+					{s.embedPageId && (
+					<Link
+					to="/org/$orgId/team/$teamId/pages/$pageId"
+					params={{
+					orgId,
+					teamId,
+					pageId: s.embedPageId,
+					}}
+					className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors"
+					>
+					<ExternalLink className="h-3 w-3" />
+					開く
+					</Link>
+					)}
+					<Button
+					type="button"
+					variant="ghost"
+					size="sm"
+					className="h-6 text-xs text-muted-foreground hover:text-destructive px-1"
+					onClick={() => removeSec.mutate(s.id)}
+					>
+					削除
+					</Button>
+					</div>
+					</div>
+					{s.embedPage ? (
+					<EmbedPageView
+					embedPage={s.embedPage}
+					orgId={orgId}
+					teamId={teamId}
+					titles={teamTitles ?? []}
+					/>
+					) : (
+					<p className="text-sm text-muted-foreground italic">
+					(embedded page was deleted)
+					</p>
+					)}
+					</div>
+					))}
+					</>
 					)}
 				</CardContent>
 			</Card>
 
 			<AddSectionForm orgId={orgId} teamId={teamId} pageId={pageId} />
 		</main>
-	);
-}
-
-type SortableSectionProps = {
-	section: SectionData;
-	orgId: string;
-	teamId: string;
-	titles: { title: string; refId: string }[];
-	onSave: (body: string) => Promise<void>;
-	onRemove: () => void;
-};
-
-function SortableSection({
-	section,
-	orgId,
-	teamId,
-	titles,
-	onSave,
-	onRemove,
-}: SortableSectionProps) {
-	const {
-		attributes,
-		listeners,
-		setNodeRef,
-		transform,
-		transition,
-		isDragging,
-	} = useSortable({ id: section.id });
-
-	const style = {
-		transform: CSS.Transform.toString(transform),
-		transition,
-		opacity: isDragging ? 0.5 : 1,
-	};
-
-	return (
-		<li
-			ref={setNodeRef}
-			style={style}
-			className="group relative rounded-md transition-colors hover:bg-muted/50 focus-within:bg-muted/30"
-		>
-			<div className="flex items-center justify-between gap-2 px-3 pt-2 pb-0.5">
-				<div className="flex items-center gap-2 min-w-0 flex-1">
-					<button
-						type="button"
-						className="cursor-grab text-muted-foreground hover:text-foreground select-none touch-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
-						aria-label="Drag to reorder"
-						{...attributes}
-						{...listeners}
-					>
-						⋮⋮
-					</button>
-					{section.type === "embed" && section.embedPage && (
-						<span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-							embed: {section.embedPage.titles[0] ?? "(no title)"}
-						</span>
-					)}
-				</div>
-				<div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-					{section.type === "embed" && section.embedPageId && (
-						<Link
-							to="/org/$orgId/team/$teamId/pages/$pageId"
-							params={{ orgId, teamId, pageId: section.embedPageId }}
-							className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
-							aria-label="Go to embedded page"
-						>
-							<ExternalLink className="h-3.5 w-3.5" />
-						</Link>
-					)}
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						className="h-7 text-xs text-muted-foreground hover:text-destructive"
-						onClick={onRemove}
-					>
-						Remove
-					</Button>
-				</div>
-			</div>
-			<div className="px-3 pb-2 pt-0.5">
-				{section.type === "text" ? (
-					<InlineBlockEditor
-						body={section.body}
-						onSave={onSave}
-						titles={titles}
-						orgId={orgId}
-						teamId={teamId}
-						excludeRefIds={[]}
-					/>
-				) : section.embedPage ? (
-					<EmbedPageView
-						embedPage={section.embedPage}
-						orgId={orgId}
-						teamId={teamId}
-						titles={titles}
-					/>
-				) : (
-					<p className="text-sm text-muted-foreground italic">
-						(embedded page was deleted)
-					</p>
-				)}
-			</div>
-		</li>
 	);
 }
 

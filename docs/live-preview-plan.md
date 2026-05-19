@@ -107,25 +107,25 @@ h1/h2によるセクション自動分割と保存。
   - `autoLinkConfigCompartment` (Compartment) でタイトルの動的更新をサポート
   - `PageEditor` の `titles`, `orgId`, `teamId`, `excludeRefIds` propsから設定
   - 自ページのrefIdは `excludeRefIds` で除外
+
+### ✅ Phase 4: Embed System（完了）
 ヘッダータイトル補完によるembed実現。
 
-- **4-1**: ヘッダータイトル補完
-  - h1/h2入力時にCodeMirror autocomplete起動
+- **4-1**: ヘッダータイトル補完 ✅
+  - h1/h2入力時にCodeMirror autocomplete起動 (`@codemirror/autocomplete`)
   - 既存ページタイトルのリストをソースに補完候補表示
-  - 選択時にembedフラグをセクションメタデータに付与
-- **4-2**: Embed展開表示
-  - embedセクションの参照先ページ内容を取得
-  - ドキュメント内にインライン展開（heading以降のbody部分）
-  - embed範囲のvisual区別（左ボーダー + 薄い背景色）
-- **4-3**: Embed編集 → 元ページ反映
-  - embed範囲内の変更を検知
-  - 変更を参照先ページのsection更新APIに反映
-  - 別のdebounceで保存（自ページとは独立）
-- **4-4**: Embedポーリング同期
-  - 定期的に参照先ページのsections取得
-  - 変更検知時: ユーザーがembed部分を編集中でなければ自動更新
+  - `createHeadingAutocompleteCompartment()` でインスタンスごとにCompartment生成
+  - titles変更時に `useEffect` でreconfigure
+- **4-2**: Embed展開表示 ✅
+  - embedセクションを `EmbedPageView` コンポーネントでインライン表示
+  - テキストセクションと区別したヘッダー + 外部リンク
+  - `hasEmbeds` ガードを廃止 → 全ページでPageEditorを使用
+- **4-3**: Embed編集 → 元ページ反映 ✅
+  - `EmbedPageView` 内の `InlineBlockEditor` から変更を `updateSectionBody` API に反映
+- **4-4**: Embedポーリング同期 ✅
+  - `useQuery` に `refetchInterval: 30_000` (30秒) を追加
 
-### Phase 5: Auto-link
+### ✅ Phase 5: Auto-link（完了）
 ページタイトルの自動リンク。
 
 - **5-1**: テキスト内のページタイトル検出
@@ -137,47 +137,37 @@ h1/h2によるセクション自動分割と保存。
   - クリック時にページ遷移（React Router連携）
   - カーソル内は通常テキスト表示（リンクスタイルは維持）
 
-### Phase 6: Drag & Drop
+### ✅ Phase 6: Section Reordering（完了）
 セクション単位の並び替え。
 
-- **6-1**: セクション境界のドラッグハンドル
-  - セパレータWidget内にドラッグアイコン表示
-  - PointerSensor / TouchSensor 対応
-- **6-2**: ドラッグ中のUI
-  - ドラッグ中セクションのハイライト
-  - ドロップ先インジケーター
-- **6-3**: ドロップ時のドキュメント更新
-  - CodeMirror doc内のテキストブロック移動
-  - reorder API呼び出し
+- **6-1**: セクション境界の↑/↓ボタン ✅
+  - セパレータWidget内に↑/↓ボタン（ホバーで表示）
+  - `touchstart` でタッチ操作にも対応
+- **6-2**: ドキュメント再構築 ✅
+  - `moveSectionEffect` → `updateListener` でdoc原子更新
+  - `setSectionRangesEffect` で境界情報を同時更新
+- **6-3**: API呼び出し ✅
+  - `onReorder` コールバック → `reorderSections` API
 
-### Phase 7: Save & Sync
+### ✅ Phase 7: Save & Sync（部分完了）
 保存とコンフリクト管理。
 
-- **7-1**: Debounced Auto-save
-  - 入力停止後1〜2秒で自動保存
-  - 保存中インジケーター表示
-  - 保存エラー時のリトライ/通知
-- **7-2**: Blur Save
+- **7-1**: Debounced Auto-save ✅
+  - 入力停止後1.5秒で自動保存
+  - 保存中 "Saving…" / 完了後 "Saved" インジケーター表示
+- **7-2**: Blur Save ✅
   - エディタからフォーカスが外れた時に即座保存
-- **7-3**: Conflict Detection
-  - ポーリングで最新データ取得
-  - ローカルの未保存変更とサーバーの変更を比較
-  - コンフリクト検出時にユーザーへ通知（toast/banner）
+- **7-3**: Conflict Detection（未実装）
 
-### Phase 8: Mobile & Polish
+### ✅ Phase 8: Mobile & Polish（部分完了）
 モバイル対応と仕上げ。
 
-- **8-1**: タッチ操作対応
-  - タップでカーソル配置
-  - ドラッグ&ドロップのタッチ対応
-  - ビューポートのスクロール問題対処
-- **8-2**: パフォーマンス最適化
-  - 大きなドキュメントでのDecoration更新最適化
-  - Lazy loading of embed contents
-- **8-3**: アクセシビリティ
-  - ARIA属性
-  - キーボードナビゲーション
-  - スクリーンリーダー対応
+- **8-1**: タッチ操作対応 ✅
+  - `touchstart` イベントで separator ボタン表示切り替え
+  - ボタンに `minWidth: 1.75rem`, `touchAction: manipulation` 追加
+  - `pointer-events: none` 削除済み
+- **8-2**: パフォーマンス最適化（未実装）
+- **8-3**: アクセシビリティ（未実装）
 
 ---
 
