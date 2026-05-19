@@ -55,6 +55,7 @@ function PagesPage() {
 			setNewTitle("");
 			setError(null);
 			qc.invalidateQueries({ queryKey: ["pages", teamId] });
+			qc.invalidateQueries({ queryKey: ["team-titles", teamId] });
 		},
 		onError: (e: Error) => setError(e.message),
 	});

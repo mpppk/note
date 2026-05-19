@@ -58,21 +58,7 @@ function TeamHome() {
 							<CardTitle>Pages</CardTitle>
 						</CardHeader>
 						<CardContent className="text-sm text-muted-foreground">
-							Blockを組み合わせたページ
-						</CardContent>
-					</Card>
-				</Link>
-				<Link
-					to="/org/$orgId/team/$teamId/blocks"
-					params={{ orgId, teamId }}
-					className="no-underline text-foreground"
-				>
-					<Card className="h-full transition-colors hover:bg-muted">
-						<CardHeader>
-							<CardTitle>Blocks</CardTitle>
-						</CardHeader>
-						<CardContent className="text-sm text-muted-foreground">
-							再利用可能なMarkdownブロック
+							Markdownページ（埋め込みで再利用可能）
 						</CardContent>
 					</Card>
 				</Link>

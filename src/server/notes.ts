@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import { and, asc, desc, eq, inArray, like, ne, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, like, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "#/db";
-import { blocks, pageBlocks, pages, titles } from "#/db/schema";
+import { pageSections, pages, titles } from "#/db/schema";
 import { auth } from "#/lib/auth";
 import { authMiddleware } from "#/server/middleware";
 
@@ -33,33 +33,7 @@ async function findTitleConflict(teamId: string, title: string) {
 	return rows[0] ?? null;
 }
 
-export const listBlocks = createServerFn({ method: "GET" })
-	.middleware([authMiddleware])
-	.inputValidator(z.object({ orgId: z.string(), teamId: z.string() }))
-	.handler(async ({ data, context }) => {
-		await requireOrgMember(data.orgId, context.user.id);
-		const blockRows = await db
-			.select()
-			.from(blocks)
-			.where(eq(blocks.teamId, data.teamId))
-			.orderBy(desc(blocks.updatedAt));
-		if (blockRows.length === 0) return [];
-		const blockIds = blockRows.map((b) => b.id);
-		const titleRows = await db
-			.select()
-			.from(titles)
-			.where(and(eq(titles.kind, "block"), inArray(titles.refId, blockIds)));
-		const byBlock = new Map<string, string[]>();
-		for (const t of titleRows) {
-			const arr = byBlock.get(t.refId) ?? [];
-			arr.push(t.title);
-			byBlock.set(t.refId, arr);
-		}
-		return blockRows.map((b) => ({
-			...b,
-			titles: byBlock.get(b.id) ?? [],
-		}));
-	});
+// ─── Page CRUD ───────────────────────────────────────────────────────────────
 
 export const listPages = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
@@ -76,7 +50,7 @@ export const listPages = createServerFn({ method: "GET" })
 		const titleRows = await db
 			.select()
 			.from(titles)
-			.where(and(eq(titles.kind, "page"), inArray(titles.refId, pageIds)));
+			.where(inArray(titles.refId, pageIds));
 		const byPage = new Map<string, string[]>();
 		for (const t of titleRows) {
 			const arr = byPage.get(t.refId) ?? [];
@@ -87,64 +61,6 @@ export const listPages = createServerFn({ method: "GET" })
 			...p,
 			titles: byPage.get(p.id) ?? [],
 		}));
-	});
-
-export const listTeamTitles = createServerFn({ method: "GET" })
-	.middleware([authMiddleware])
-	.inputValidator(z.object({ orgId: z.string(), teamId: z.string() }))
-	.handler(async ({ data, context }) => {
-		await requireOrgMember(data.orgId, context.user.id);
-		return db
-			.select({
-				title: titles.title,
-				kind: titles.kind,
-				refId: titles.refId,
-			})
-			.from(titles)
-			.where(eq(titles.teamId, data.teamId));
-	});
-
-export const getBlock = createServerFn({ method: "GET" })
-	.middleware([authMiddleware])
-	.inputValidator(z.object({ orgId: z.string(), blockId: z.string() }))
-	.handler(async ({ data, context }) => {
-		const [block] = await db
-			.select()
-			.from(blocks)
-			.where(eq(blocks.id, data.blockId))
-			.limit(1);
-		if (!block) throw new Error("Block not found");
-		await requireOrgMember(data.orgId, context.user.id);
-		const blockTitles = await db
-			.select()
-			.from(titles)
-			.where(and(eq(titles.kind, "block"), eq(titles.refId, block.id)))
-			.orderBy(asc(titles.createdAt));
-		const containingRows = await db
-			.select({
-				pageId: pageBlocks.pageId,
-				title: titles.title,
-			})
-			.from(pageBlocks)
-			.leftJoin(
-				titles,
-				and(eq(titles.kind, "page"), eq(titles.refId, pageBlocks.pageId)),
-			)
-			.where(eq(pageBlocks.blockId, block.id));
-		const containingMap = new Map<string, string[]>();
-		for (const r of containingRows) {
-			const arr = containingMap.get(r.pageId) ?? [];
-			if (r.title) arr.push(r.title);
-			containingMap.set(r.pageId, arr);
-		}
-		const containingPages = Array.from(containingMap.entries()).map(
-			([pageId, ts]) => ({ pageId, titles: ts }),
-		);
-		return {
-			...block,
-			titles: blockTitles.map((t) => t.title),
-			containingPages,
-		};
 	});
 
 export const getPage = createServerFn({ method: "GET" })
@@ -161,75 +77,18 @@ export const getPage = createServerFn({ method: "GET" })
 		const pageTitles = await db
 			.select()
 			.from(titles)
-			.where(and(eq(titles.kind, "page"), eq(titles.refId, page.id)))
+			.where(eq(titles.refId, page.id))
 			.orderBy(asc(titles.createdAt));
-		const items = await db
-			.select({
-				blockId: pageBlocks.blockId,
-				order: pageBlocks.order,
-				body: blocks.body,
-				blockUpdatedAt: blocks.updatedAt,
-			})
-			.from(pageBlocks)
-			.innerJoin(blocks, eq(blocks.id, pageBlocks.blockId))
-			.where(eq(pageBlocks.pageId, page.id))
-			.orderBy(asc(pageBlocks.order));
-		const blockIds = items.map((i) => i.blockId);
-		const blockTitleRows = blockIds.length
-			? await db
-					.select()
-					.from(titles)
-					.where(and(eq(titles.kind, "block"), inArray(titles.refId, blockIds)))
-			: [];
-		const titlesByBlock = new Map<string, string[]>();
-		for (const t of blockTitleRows) {
-			const arr = titlesByBlock.get(t.refId) ?? [];
-			arr.push(t.title);
-			titlesByBlock.set(t.refId, arr);
-		}
+		const sections = await db
+			.select()
+			.from(pageSections)
+			.where(eq(pageSections.pageId, page.id))
+			.orderBy(asc(pageSections.order));
 		return {
 			...page,
 			titles: pageTitles.map((t) => t.title),
-			blocks: items.map((i) => ({
-				id: i.blockId,
-				order: i.order,
-				body: i.body,
-				updatedAt: i.blockUpdatedAt,
-				titles: titlesByBlock.get(i.blockId) ?? [],
-			})),
+			sections,
 		};
-	});
-
-const TitleSchema = z.string().trim().min(1).max(200);
-
-export const createBlock = createServerFn({ method: "POST" })
-	.middleware([authMiddleware])
-	.inputValidator(
-		z.object({
-			orgId: z.string(),
-			teamId: z.string(),
-			title: TitleSchema,
-			body: z.string().default(""),
-		}),
-	)
-	.handler(async ({ data, context }) => {
-		await requireOrgMember(data.orgId, context.user.id);
-		const conflict = await findTitleConflict(data.teamId, data.title);
-		if (conflict) throw new Error("Title already in use in this team");
-		const id = crypto.randomUUID();
-		await db.insert(blocks).values({
-			id,
-			teamId: data.teamId,
-			body: data.body,
-		});
-		await db.insert(titles).values({
-			teamId: data.teamId,
-			title: data.title.trim(),
-			titleLower: normalize(data.title),
-			kind: "block",
-			refId: id,
-		});
-		return { id };
 	});
 
 export const createPage = createServerFn({ method: "POST" })
@@ -238,7 +97,7 @@ export const createPage = createServerFn({ method: "POST" })
 		z.object({
 			orgId: z.string(),
 			teamId: z.string(),
-			title: TitleSchema,
+			title: z.string().trim().min(1).max(200),
 		}),
 	)
 	.handler(async ({ data, context }) => {
@@ -254,208 +113,113 @@ export const createPage = createServerFn({ method: "POST" })
 			teamId: data.teamId,
 			title: data.title.trim(),
 			titleLower: normalize(data.title),
-			kind: "page",
 			refId: id,
 		});
 		return { id };
 	});
 
-export const updateBlockBody = createServerFn({ method: "POST" })
+export const deletePage = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])
-	.inputValidator(
-		z.object({
-			orgId: z.string(),
-			blockId: z.string(),
-			body: z.string(),
-		}),
-	)
+	.inputValidator(z.object({ orgId: z.string(), pageId: z.string() }))
 	.handler(async ({ data, context }) => {
 		await requireOrgMember(data.orgId, context.user.id);
-		const [block] = await db
-			.select()
-			.from(blocks)
-			.where(eq(blocks.id, data.blockId))
-			.limit(1);
-		if (!block) throw new Error("Block not found");
-		await db
-			.update(blocks)
-			.set({ body: data.body, updatedAt: new Date() })
-			.where(eq(blocks.id, data.blockId));
+		await db.delete(titles).where(eq(titles.refId, data.pageId));
+		await db.delete(pages).where(eq(pages.id, data.pageId));
 		return { success: true };
 	});
 
-export const addTitle = createServerFn({ method: "POST" })
-	.middleware([authMiddleware])
-	.inputValidator(
-		z.object({
-			orgId: z.string(),
-			teamId: z.string(),
-			kind: z.enum(["block", "page"]),
-			refId: z.string(),
-			title: TitleSchema,
-		}),
-	)
-	.handler(async ({ data, context }) => {
-		await requireOrgMember(data.orgId, context.user.id);
-		const conflict = await findTitleConflict(data.teamId, data.title);
-		if (conflict) throw new Error("Title already in use in this team");
-		await db.insert(titles).values({
-			teamId: data.teamId,
-			title: data.title.trim(),
-			titleLower: normalize(data.title),
-			kind: data.kind,
-			refId: data.refId,
-		});
-		return { success: true };
-	});
+// ─── Sections ────────────────────────────────────────────────────────────────
 
-export const removeTitle = createServerFn({ method: "POST" })
+export const addTextSection = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])
 	.inputValidator(
 		z.object({
 			orgId: z.string(),
-			teamId: z.string(),
-			kind: z.enum(["block", "page"]),
-			refId: z.string(),
-			title: z.string(),
-		}),
-	)
-	.handler(async ({ data, context }) => {
-		await requireOrgMember(data.orgId, context.user.id);
-		const remaining = await db
-			.select()
-			.from(titles)
-			.where(
-				and(
-					eq(titles.teamId, data.teamId),
-					eq(titles.kind, data.kind),
-					eq(titles.refId, data.refId),
-				),
-			);
-		if (remaining.length <= 1) {
-			throw new Error("Cannot remove the only remaining title");
-		}
-		await db
-			.delete(titles)
-			.where(
-				and(
-					eq(titles.teamId, data.teamId),
-					eq(titles.kind, data.kind),
-					eq(titles.refId, data.refId),
-					eq(titles.titleLower, normalize(data.title)),
-				),
-			);
-		return { success: true };
-	});
-
-export const addBlockToPage = createServerFn({ method: "POST" })
-	.middleware([authMiddleware])
-	.inputValidator(
-		z.object({
-			orgId: z.string(),
-			teamId: z.string(),
 			pageId: z.string(),
-			blockId: z.string(),
-		}),
-	)
-	.handler(async ({ data, context }) => {
-		await requireOrgMember(data.orgId, context.user.id);
-		const existing = await db
-			.select()
-			.from(pageBlocks)
-			.where(
-				and(
-					eq(pageBlocks.pageId, data.pageId),
-					eq(pageBlocks.blockId, data.blockId),
-				),
-			)
-			.limit(1);
-		if (existing.length > 0) {
-			throw new Error("Block already in page");
-		}
-		const last = await db
-			.select({ order: pageBlocks.order })
-			.from(pageBlocks)
-			.where(eq(pageBlocks.pageId, data.pageId))
-			.orderBy(desc(pageBlocks.order))
-			.limit(1);
-		const nextOrder = (last[0]?.order ?? 0) + 1024;
-		await db.insert(pageBlocks).values({
-			pageId: data.pageId,
-			blockId: data.blockId,
-			order: nextOrder,
-		});
-		await db
-			.update(pages)
-			.set({ updatedAt: new Date() })
-			.where(eq(pages.id, data.pageId));
-		return { success: true };
-	});
-
-export const createAndAddBlockToPage = createServerFn({ method: "POST" })
-	.middleware([authMiddleware])
-	.inputValidator(
-		z.object({
-			orgId: z.string(),
-			teamId: z.string(),
-			pageId: z.string(),
-			title: TitleSchema,
 			body: z.string().default(""),
 		}),
 	)
 	.handler(async ({ data, context }) => {
 		await requireOrgMember(data.orgId, context.user.id);
-		const conflict = await findTitleConflict(data.teamId, data.title);
-		if (conflict) throw new Error("Title already in use in this team");
-		const blockId = crypto.randomUUID();
-		await db.insert(blocks).values({
-			id: blockId,
-			teamId: data.teamId,
-			body: data.body,
-		});
-		await db.insert(titles).values({
-			teamId: data.teamId,
-			title: data.title.trim(),
-			titleLower: normalize(data.title),
-			kind: "block",
-			refId: blockId,
-		});
 		const last = await db
-			.select({ order: pageBlocks.order })
-			.from(pageBlocks)
-			.where(eq(pageBlocks.pageId, data.pageId))
-			.orderBy(desc(pageBlocks.order))
+			.select({ order: pageSections.order })
+			.from(pageSections)
+			.where(eq(pageSections.pageId, data.pageId))
+			.orderBy(desc(pageSections.order))
 			.limit(1);
 		const nextOrder = (last[0]?.order ?? 0) + 1024;
-		await db.insert(pageBlocks).values({
+		const id = crypto.randomUUID();
+		await db.insert(pageSections).values({
+			id,
 			pageId: data.pageId,
-			blockId,
+			type: "text",
+			body: data.body,
 			order: nextOrder,
 		});
 		await db
 			.update(pages)
 			.set({ updatedAt: new Date() })
 			.where(eq(pages.id, data.pageId));
-		return { blockId };
+		return { id };
 	});
 
-export const unlinkBlockFromPage = createServerFn({ method: "POST" })
+export const addEmbedSection = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])
 	.inputValidator(
 		z.object({
 			orgId: z.string(),
 			pageId: z.string(),
-			blockId: z.string(),
+			embedPageId: z.string(),
+		}),
+	)
+	.handler(async ({ data, context }) => {
+		await requireOrgMember(data.orgId, context.user.id);
+		// Verify embed target exists
+		const [target] = await db
+			.select()
+			.from(pages)
+			.where(eq(pages.id, data.embedPageId))
+			.limit(1);
+		if (!target) throw new Error("Embed target page not found");
+		const last = await db
+			.select({ order: pageSections.order })
+			.from(pageSections)
+			.where(eq(pageSections.pageId, data.pageId))
+			.orderBy(desc(pageSections.order))
+			.limit(1);
+		const nextOrder = (last[0]?.order ?? 0) + 1024;
+		const id = crypto.randomUUID();
+		await db.insert(pageSections).values({
+			id,
+			pageId: data.pageId,
+			type: "embed",
+			embedPageId: data.embedPageId,
+			order: nextOrder,
+		});
+		await db
+			.update(pages)
+			.set({ updatedAt: new Date() })
+			.where(eq(pages.id, data.pageId));
+		return { id };
+	});
+
+export const removeSection = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.inputValidator(
+		z.object({
+			orgId: z.string(),
+			pageId: z.string(),
+			sectionId: z.string(),
 		}),
 	)
 	.handler(async ({ data, context }) => {
 		await requireOrgMember(data.orgId, context.user.id);
 		await db
-			.delete(pageBlocks)
+			.delete(pageSections)
 			.where(
 				and(
-					eq(pageBlocks.pageId, data.pageId),
-					eq(pageBlocks.blockId, data.blockId),
+					eq(pageSections.id, data.sectionId),
+					eq(pageSections.pageId, data.pageId),
 				),
 			);
 		await db
@@ -465,25 +229,25 @@ export const unlinkBlockFromPage = createServerFn({ method: "POST" })
 		return { success: true };
 	});
 
-export const reorderPageBlocks = createServerFn({ method: "POST" })
+export const reorderSections = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])
 	.inputValidator(
 		z.object({
 			orgId: z.string(),
 			pageId: z.string(),
-			blockIds: z.array(z.string()),
+			sectionIds: z.array(z.string()),
 		}),
 	)
 	.handler(async ({ data, context }) => {
 		await requireOrgMember(data.orgId, context.user.id);
-		const updates = data.blockIds.map((blockId, i) =>
+		const updates = data.sectionIds.map((sectionId, i) =>
 			db
-				.update(pageBlocks)
+				.update(pageSections)
 				.set({ order: (i + 1) * 1024 })
 				.where(
 					and(
-						eq(pageBlocks.pageId, data.pageId),
-						eq(pageBlocks.blockId, blockId),
+						eq(pageSections.id, sectionId),
+						eq(pageSections.pageId, data.pageId),
 					),
 				),
 		);
@@ -495,29 +259,189 @@ export const reorderPageBlocks = createServerFn({ method: "POST" })
 		return { success: true };
 	});
 
-export const deleteBlock = createServerFn({ method: "POST" })
+export const updateSectionBody = createServerFn({ method: "POST" })
 	.middleware([authMiddleware])
-	.inputValidator(z.object({ orgId: z.string(), blockId: z.string() }))
+	.inputValidator(
+		z.object({
+			orgId: z.string(),
+			sectionId: z.string(),
+			body: z.string(),
+		}),
+	)
 	.handler(async ({ data, context }) => {
 		await requireOrgMember(data.orgId, context.user.id);
+		const [section] = await db
+			.select()
+			.from(pageSections)
+			.where(eq(pageSections.id, data.sectionId))
+			.limit(1);
+		if (!section) throw new Error("Section not found");
+		if (section.type !== "text")
+			throw new Error("Only text sections can be edited");
 		await db
-			.delete(titles)
-			.where(and(eq(titles.kind, "block"), eq(titles.refId, data.blockId)));
-		await db.delete(blocks).where(eq(blocks.id, data.blockId));
+			.update(pageSections)
+			.set({ body: data.body, updatedAt: new Date() })
+			.where(eq(pageSections.id, data.sectionId));
+		// Also update parent page timestamp
+		await db
+			.update(pages)
+			.set({ updatedAt: new Date() })
+			.where(eq(pages.id, section.pageId));
 		return { success: true };
 	});
 
-export const deletePage = createServerFn({ method: "POST" })
+// ─── Embed (recursive fetch) ────────────────────────────────────────────────
+
+export const getPageWithEmbeds = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
 	.inputValidator(z.object({ orgId: z.string(), pageId: z.string() }))
 	.handler(async ({ data, context }) => {
 		await requireOrgMember(data.orgId, context.user.id);
-		await db
-			.delete(titles)
-			.where(and(eq(titles.kind, "page"), eq(titles.refId, data.pageId)));
-		await db.delete(pages).where(eq(pages.id, data.pageId));
+
+		type SectionData = {
+			id: string;
+			type: "text" | "embed";
+			body: string;
+			order: number;
+			embedPageId: string | null;
+			embedPage?: {
+				id: string;
+				titles: string[];
+				sections: SectionData[];
+			} | null;
+		};
+
+		async function expandPage(
+			pageId: string,
+			visited: Set<string>,
+		): Promise<{
+			id: string;
+			titles: string[];
+			sections: SectionData[];
+		} | null> {
+			if (visited.has(pageId)) return null; // circular reference
+			visited.add(pageId);
+
+			const [page] = await db
+				.select()
+				.from(pages)
+				.where(eq(pages.id, pageId))
+				.limit(1);
+			if (!page) return null;
+
+			const pageTitles = await db
+				.select()
+				.from(titles)
+				.where(eq(titles.refId, pageId))
+				.orderBy(asc(titles.createdAt));
+
+			const sections = await db
+				.select()
+				.from(pageSections)
+				.where(eq(pageSections.pageId, pageId))
+				.orderBy(asc(pageSections.order));
+
+			const result: SectionData[] = [];
+			for (const s of sections) {
+				const sectionData: SectionData = {
+					id: s.id,
+					type: s.type as "text" | "embed",
+					body: s.body,
+					order: s.order,
+					embedPageId: s.embedPageId,
+				};
+				if (s.type === "embed" && s.embedPageId) {
+					sectionData.embedPage = await expandPage(
+						s.embedPageId,
+						new Set(visited),
+					);
+				}
+				result.push(sectionData);
+			}
+
+			return {
+				id: page.id,
+				titles: pageTitles.map((t) => t.title),
+				sections: result,
+			};
+		}
+
+		const expanded = await expandPage(data.pageId, new Set());
+		if (!expanded) throw new Error("Page not found");
+		return expanded;
+	});
+
+// ─── Titles ──────────────────────────────────────────────────────────────────
+
+export const listTeamTitles = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.inputValidator(z.object({ orgId: z.string(), teamId: z.string() }))
+	.handler(async ({ data, context }) => {
+		await requireOrgMember(data.orgId, context.user.id);
+		return db
+			.select({
+				title: titles.title,
+				refId: titles.refId,
+			})
+			.from(titles)
+			.where(eq(titles.teamId, data.teamId));
+	});
+
+export const addTitle = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.inputValidator(
+		z.object({
+			orgId: z.string(),
+			teamId: z.string(),
+			refId: z.string(),
+			title: z.string().trim().min(1).max(200),
+		}),
+	)
+	.handler(async ({ data, context }) => {
+		await requireOrgMember(data.orgId, context.user.id);
+		const conflict = await findTitleConflict(data.teamId, data.title);
+		if (conflict) throw new Error("Title already in use in this team");
+		await db.insert(titles).values({
+			teamId: data.teamId,
+			title: data.title.trim(),
+			titleLower: normalize(data.title),
+			refId: data.refId,
+		});
 		return { success: true };
 	});
+
+export const removeTitle = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.inputValidator(
+		z.object({
+			orgId: z.string(),
+			teamId: z.string(),
+			refId: z.string(),
+			title: z.string(),
+		}),
+	)
+	.handler(async ({ data, context }) => {
+		await requireOrgMember(data.orgId, context.user.id);
+		const remaining = await db
+			.select()
+			.from(titles)
+			.where(and(eq(titles.teamId, data.teamId), eq(titles.refId, data.refId)));
+		if (remaining.length <= 1) {
+			throw new Error("Cannot remove the only remaining title");
+		}
+		await db
+			.delete(titles)
+			.where(
+				and(
+					eq(titles.teamId, data.teamId),
+					eq(titles.refId, data.refId),
+					eq(titles.titleLower, normalize(data.title)),
+				),
+			);
+		return { success: true };
+	});
+
+// ─── Backlinks ───────────────────────────────────────────────────────────────
 
 export const searchBacklinks = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
@@ -526,39 +450,69 @@ export const searchBacklinks = createServerFn({ method: "GET" })
 			orgId: z.string(),
 			teamId: z.string(),
 			titles: z.array(z.string()),
-			excludeBlockId: z.string().optional(),
+			excludePageId: z.string().optional(),
 		}),
 	)
 	.handler(async ({ data, context }) => {
 		await requireOrgMember(data.orgId, context.user.id);
 		if (data.titles.length === 0) return [];
-		const conds = data.titles.map((t) => like(blocks.body, `%${t}%`));
-		let where = and(eq(blocks.teamId, data.teamId), or(...conds));
-		if (data.excludeBlockId) {
-			where = and(where, ne(blocks.id, data.excludeBlockId));
+
+		// Find text sections that contain any of the titles
+		const conds = data.titles.map((t) => like(pageSections.body, `%${t}%`));
+
+		// Join with pages to filter by team
+		const candidates = await db
+			.select({
+				sectionId: pageSections.id,
+				pageId: pageSections.pageId,
+				body: pageSections.body,
+				teamId: pages.teamId,
+			})
+			.from(pageSections)
+			.innerJoin(pages, eq(pages.id, pageSections.pageId))
+			.where(
+				and(
+					eq(pages.teamId, data.teamId),
+					eq(pageSections.type, "text"),
+					or(...conds),
+				),
+			);
+
+		// Filter candidates further (exact case-insensitive match)
+		const lowerSearches = data.titles.map((t) => t.toLowerCase());
+		const matchingPageIds = new Set<string>();
+		for (const c of candidates) {
+			if (data.excludePageId && c.pageId === data.excludePageId) continue;
+			const lowerBody = c.body.toLowerCase();
+			if (lowerSearches.some((s) => lowerBody.includes(s))) {
+				matchingPageIds.add(c.pageId);
+			}
 		}
-		const candidates = await db.select().from(blocks).where(where);
-		if (candidates.length === 0) return [];
-		const ids = candidates.map((b) => b.id);
+
+		if (matchingPageIds.size === 0) return [];
+		const ids = Array.from(matchingPageIds);
+
+		// Get titles for matching pages
 		const titleRows = await db
 			.select()
 			.from(titles)
-			.where(and(eq(titles.kind, "block"), inArray(titles.refId, ids)));
-		const titlesByBlock = new Map<string, string[]>();
+			.where(inArray(titles.refId, ids));
+		const titlesByPage = new Map<string, string[]>();
 		for (const t of titleRows) {
-			const arr = titlesByBlock.get(t.refId) ?? [];
+			const arr = titlesByPage.get(t.refId) ?? [];
 			arr.push(t.title);
-			titlesByBlock.set(t.refId, arr);
+			titlesByPage.set(t.refId, arr);
 		}
-		const lowerSearches = data.titles.map((t) => t.toLowerCase());
-		return candidates
-			.filter((b) => {
-				const lowerBody = b.body.toLowerCase();
-				return lowerSearches.some((s) => lowerBody.includes(s));
-			})
-			.map((b) => ({
-				id: b.id,
-				titles: titlesByBlock.get(b.id) ?? [],
-				updatedAt: b.updatedAt,
-			}));
+
+		// Get page metadata
+		const pageRows = await db
+			.select()
+			.from(pages)
+			.where(inArray(pages.id, ids));
+
+		return pageRows.map((p) => ({
+			id: p.id,
+			titles: titlesByPage.get(p.id) ?? [],
+			updatedAt: p.updatedAt,
+		}));
 	});

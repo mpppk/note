@@ -3,7 +3,6 @@ import type { Plugin } from "unified";
 
 export type TitleEntry = {
 	title: string;
-	kind: "block" | "page";
 	refId: string;
 };
 
@@ -43,10 +42,9 @@ export const remarkAutoLink: Plugin<[AutoLinkOptions]> = (options) => {
 				(match: string) => {
 					const entry = lookup.get(match.toLowerCase());
 					if (!entry) return false;
-					const path = entry.kind === "block" ? "blocks" : "pages";
 					return {
 						type: "link",
-						url: `/org/${options.orgId}/team/${options.teamId}/${path}/${entry.refId}`,
+						url: `/org/${options.orgId}/team/${options.teamId}/pages/${entry.refId}`,
 						children: [{ type: "text", value: match }],
 					};
 				},
