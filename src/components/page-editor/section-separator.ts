@@ -207,9 +207,11 @@ const sectionGapAtomicRanges = EditorView.atomicRanges.of((view) => {
 	for (let i = 0; i < ranges.length - 1; i++) {
 		const current = ranges[i];
 		const next = ranges[i + 1];
-		const gapPos = current.to + 1;
-		if (gapPos < next.from && gapPos <= view.state.doc.length) {
-			builder.add(gapPos, next.from, Decoration.mark({}));
+		// atomicRanges blocks positions P where from < P < to (boundaries excluded).
+		// Using [current.to, next.from) blocks gapPos (= current.to + 1) while
+		// leaving current.to itself accessible (end of section A body).
+		if (current.to < next.from) {
+			builder.add(current.to, next.from, Decoration.mark({}));
 		}
 	}
 	return builder.finish();
