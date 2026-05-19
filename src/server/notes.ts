@@ -1,22 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
 import { and, asc, desc, eq, gt, inArray, like, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "#/db";
+import { member } from "#/db/auth-schema";
 import { pageSections, pages, titles } from "#/db/schema";
-import { auth } from "#/lib/auth";
 import { authMiddleware } from "#/server/middleware";
 
 async function requireOrgMember(orgId: string, userId: string) {
-	const request = getRequest();
-	const org = await auth.api.getFullOrganization({
-		headers: request.headers,
-		query: { organizationId: orgId },
-	});
-	if (!org) throw new Error("Organization not found");
-	const member = org.members.find((m) => m.userId === userId);
-	if (!member) throw new Error("Forbidden: not a member of this organization");
-	return member;
+	const [row] = await db
+		.select()
+		.from(member)
+		.where(and(eq(member.organizationId, orgId), eq(member.userId, userId)))
+		.limit(1);
+	if (!row) throw new Error("Forbidden: not a member of this organization");
+	return row;
 }
 
 function normalize(title: string): string {
@@ -67,23 +64,23 @@ export const getPage = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
 	.inputValidator(z.object({ orgId: z.string(), pageId: z.string() }))
 	.handler(async ({ data, context }) => {
-		const [page] = await db
-			.select()
-			.from(pages)
-			.where(eq(pages.id, data.pageId))
-			.limit(1);
+		const [[page]] = await Promise.all([
+			db.select().from(pages).where(eq(pages.id, data.pageId)).limit(1),
+			requireOrgMember(data.orgId, context.user.id),
+		]);
 		if (!page) throw new Error("Page not found");
-		await requireOrgMember(data.orgId, context.user.id);
-		const pageTitles = await db
-			.select()
-			.from(titles)
-			.where(eq(titles.refId, page.id))
-			.orderBy(asc(titles.createdAt));
-		const sections = await db
-			.select()
-			.from(pageSections)
-			.where(eq(pageSections.pageId, page.id))
-			.orderBy(asc(pageSections.order));
+		const [pageTitles, sections] = await Promise.all([
+			db
+				.select()
+				.from(titles)
+				.where(eq(titles.refId, page.id))
+				.orderBy(asc(titles.createdAt)),
+			db
+				.select()
+				.from(pageSections)
+				.where(eq(pageSections.pageId, page.id))
+				.orderBy(asc(pageSections.order)),
+		]);
 		return {
 			...page,
 			titles: pageTitles.map((t) => t.title),
@@ -381,35 +378,37 @@ export const getPageWithEmbeds = createServerFn({ method: "GET" })
 				.limit(1);
 			if (!page) return null;
 
-			const pageTitles = await db
-				.select()
-				.from(titles)
-				.where(eq(titles.refId, pageId))
-				.orderBy(asc(titles.createdAt));
+			const [pageTitles, sections] = await Promise.all([
+				db
+					.select()
+					.from(titles)
+					.where(eq(titles.refId, pageId))
+					.orderBy(asc(titles.createdAt)),
+				db
+					.select()
+					.from(pageSections)
+					.where(eq(pageSections.pageId, pageId))
+					.orderBy(asc(pageSections.order)),
+			]);
 
-			const sections = await db
-				.select()
-				.from(pageSections)
-				.where(eq(pageSections.pageId, pageId))
-				.orderBy(asc(pageSections.order));
-
-			const result: SectionData[] = [];
-			for (const s of sections) {
-				const sectionData: SectionData = {
-					id: s.id,
-					type: s.type as "text" | "embed",
-					body: s.body,
-					order: s.order,
-					embedPageId: s.embedPageId,
-				};
-				if (s.type === "embed" && s.embedPageId) {
-					sectionData.embedPage = await expandPage(
-						s.embedPageId,
-						new Set(visited),
-					);
-				}
-				result.push(sectionData);
-			}
+			const result: SectionData[] = await Promise.all(
+				sections.map(async (s) => {
+					const sectionData: SectionData = {
+						id: s.id,
+						type: s.type as "text" | "embed",
+						body: s.body,
+						order: s.order,
+						embedPageId: s.embedPageId,
+					};
+					if (s.type === "embed" && s.embedPageId) {
+						sectionData.embedPage = await expandPage(
+							s.embedPageId,
+							new Set(visited),
+						);
+					}
+					return sectionData;
+				}),
+			);
 
 			return {
 				id: page.id,
