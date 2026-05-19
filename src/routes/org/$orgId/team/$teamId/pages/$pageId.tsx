@@ -379,9 +379,9 @@ function PageDetailPage() {
 										});
 										return result.id;
 									}}
-									onDeleteSection={(sectionId) =>
-										removeSec.mutateAsync(sectionId)
-									}
+									onDeleteSection={async (sectionId) => {
+										await removeSec.mutateAsync(sectionId);
+									}}
 									dark={dark}
 									titles={teamTitles ?? []}
 									orgId={orgId}
