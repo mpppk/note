@@ -190,7 +190,9 @@ export function PageEditor({
 					...ranges.slice(i + 1),
 				];
 				// No doc change needed — content is already contiguous in the editor.
-				onDeleteSectionRef.current(range.id).catch(console.error);
+				// Await delete before dispatching so that any saveChanges-triggered
+				// query re-fetch sees the section as already deleted in the DB.
+				await onDeleteSectionRef.current(range.id);
 				lastSavedRef.current.delete(range.id);
 				view.dispatch({ effects: setSectionRangesEffect.of(newRanges) });
 				ranges = view.state.field(sectionRangesField);
