@@ -1,4 +1,4 @@
-import { StateField, type Transaction } from "@codemirror/state";
+import { StateEffect, StateField, type Transaction } from "@codemirror/state";
 
 /**
  * Tracks a single section's position within the merged document.
@@ -13,12 +13,30 @@ export type SectionRange = {
 };
 
 /**
+ * StateEffect to explicitly overwrite section ranges (e.g., after reorder).
+ */
+export const setSectionRangesEffect = StateEffect.define<SectionRange[]>();
+
+/**
+ * StateEffect to request moving a section from one index to another.
+ * Handled by PageEditor's updateListener to perform the actual doc swap.
+ */
+export const moveSectionEffect = StateEffect.define<{
+	fromIndex: number;
+	toIndex: number;
+}>();
+
+/**
  * StateField that tracks section positions within the merged document.
  * Updates positions as the document is edited.
  */
 export const sectionRangesField = StateField.define<SectionRange[]>({
 	create: () => [],
 	update(ranges, tr: Transaction) {
+		// Explicit override (e.g. after a section reorder)
+		for (const effect of tr.effects) {
+			if (effect.is(setSectionRangesEffect)) return effect.value;
+		}
 		if (!tr.docChanged) return ranges;
 		return ranges.map((range) => ({
 			...range,

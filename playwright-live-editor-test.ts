@@ -23,7 +23,7 @@ return match ? match[1] : filePath;
 async function main() {
 if (!fs.existsSync(SCREENSHOT_DIR)) fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 
-const browser = await chromium.launch({ headless: false, slowMo: 80 });
+const browser = await chromium.launch({ headless: true, slowMo: 80 });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
 const page = await ctx.newPage();
 const shots: { label: string; url: string }[] = [];
