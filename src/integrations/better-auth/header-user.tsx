@@ -1,5 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import { UserIcon } from "lucide-react";
+import ThemeToggle from "#/components/ThemeToggle";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -44,6 +45,11 @@ export default function BetterAuthHeader() {
 					</button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent>
+					<div className="flex items-center justify-between px-2 py-1.5">
+						<span className="text-sm">ダークモード</span>
+						<ThemeToggle />
+					</div>
+					<DropdownMenuSeparator />
 					<DropdownMenuItem
 						onSelect={() => {
 							void router.navigate({ to: "/profile" });
@@ -80,6 +86,11 @@ export default function BetterAuthHeader() {
 				</button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
+				<div className="flex items-center justify-between px-2 py-1.5">
+					<span className="text-sm">ダークモード</span>
+					<ThemeToggle />
+				</div>
+				<DropdownMenuSeparator />
 				<DropdownMenuItem
 					onSelect={() => {
 						void router.navigate({ to: "/login" });

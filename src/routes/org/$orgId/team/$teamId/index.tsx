@@ -1,8 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "#/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from "#/components/ui/dialog";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import { getSession } from "#/server/auth";
@@ -47,6 +53,7 @@ function PagesPage() {
 	const [filter, setFilter] = useState("");
 	const [newTitle, setNewTitle] = useState("");
 	const [error, setError] = useState<string | null>(null);
+	const [modalOpen, setModalOpen] = useState(false);
 
 	const { mutate: handleCreate, isPending: creating } = useMutation({
 		mutationFn: () =>
@@ -54,6 +61,7 @@ function PagesPage() {
 		onSuccess: () => {
 			setNewTitle("");
 			setError(null);
+			setModalOpen(false);
 			qc.invalidateQueries({ queryKey: ["pages", teamId] });
 			qc.invalidateQueries({ queryKey: ["team-titles", teamId] });
 		},
@@ -84,7 +92,13 @@ function PagesPage() {
 				<span className="font-medium text-foreground">Team</span>
 			</div>
 
-			<h1 className="mb-6 text-2xl font-bold">Pages</h1>
+			<div className="mb-6 flex items-center justify-between">
+				<h1 className="text-2xl font-bold">Pages</h1>
+				<Button type="button" size="sm" onClick={() => setModalOpen(true)}>
+					<PlusIcon />
+					New Page
+				</Button>
+			</div>
 
 			<div className="mb-4">
 				<Input
@@ -117,11 +131,11 @@ function PagesPage() {
 				)}
 			</ul>
 
-			<Card>
-				<CardHeader>
-					<CardTitle>Create Page</CardTitle>
-				</CardHeader>
-				<CardContent>
+			<Dialog open={modalOpen} onOpenChange={setModalOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Create Page</DialogTitle>
+					</DialogHeader>
 					<div className="flex flex-col gap-3">
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="page-title">Title *</Label>
@@ -145,8 +159,8 @@ function PagesPage() {
 							Create
 						</Button>
 					</div>
-				</CardContent>
-			</Card>
+				</DialogContent>
+			</Dialog>
 		</main>
 	);
 }
