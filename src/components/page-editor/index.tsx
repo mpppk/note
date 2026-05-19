@@ -153,9 +153,7 @@ export function PageEditor({
 						newSects.splice(toIndex, 0, moved);
 						const { doc: newDoc, ranges: newRanges } = mergeSections(newSects);
 						// Update lastSaved map to reflect new order
-						lastSavedRef.current = new Map(
-							newSects.map((s) => [s.id, s.body]),
-						);
+						lastSavedRef.current = new Map(newSects.map((s) => [s.id, s.body]));
 						update.view.dispatch({
 							changes: {
 								from: 0,
@@ -247,7 +245,10 @@ export function PageEditor({
 		const view = viewRef.current;
 		if (!view) return;
 		view.dispatch({
-			effects: headingAutocompleteConfig(headingACCompartmentRef.current, titles ?? []),
+			effects: headingAutocompleteConfig(
+				headingACCompartmentRef.current,
+				titles ?? [],
+			),
 		});
 	}, [titles]);
 

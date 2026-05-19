@@ -77,11 +77,15 @@ class SectionSeparatorWidget extends WidgetType {
 			btns.style.opacity = "0";
 		});
 		// Touch: toggle visibility on tap on the separator bar
-		el.addEventListener("touchstart", (e) => {
-			e.stopPropagation();
-			const isVisible = btns.style.opacity === "1";
-			btns.style.opacity = isVisible ? "0" : "1";
-		}, { passive: true });
+		el.addEventListener(
+			"touchstart",
+			(e) => {
+				e.stopPropagation();
+				const isVisible = btns.style.opacity === "1";
+				btns.style.opacity = isVisible ? "0" : "1";
+			},
+			{ passive: true },
+		);
 
 		return el;
 	}
