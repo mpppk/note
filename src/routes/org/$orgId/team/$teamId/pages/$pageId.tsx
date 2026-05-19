@@ -423,7 +423,7 @@ function SortableSection({
 						⋮⋮
 					</button>
 					{section.type === "embed" && section.embedPage && (
-						<span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+						<span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
 							embed: {section.embedPage.titles[0] ?? "(no title)"}
 						</span>
 					)}
