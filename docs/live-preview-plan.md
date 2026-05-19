@@ -76,7 +76,7 @@ CodeMirror 6の基盤を構築し、既存UIを置き換える。
 - **2-6**: Code Blocks デコレーション
   - ` ``` ` で囲まれたブロック: カーソル外→フェンス行スタイル + コードブロックスタイル
 
-### Phase 3: Section Management
+### ✅ Phase 3: Section Management（完了）
 h1/h2によるセクション自動分割と保存。
 
 - **3-1**: ドキュメントパーサー実装
@@ -91,7 +91,22 @@ h1/h2によるセクション自動分割と保存。
   - セクション境界にvisualなセパレータ（Widget Decoration）
   - セパレータはnon-editable
 
-### Phase 4: Embed System
+### ✅ Phase 5: Auto-link（完了）
+ページタイトルの自動リンク。
+
+- **5-1**: テキスト内のページタイトル検出
+  - `autoLink` ViewPluginでCodeMirror decoration実装
+  - Longest match優先（降順ソート + Regex OR）
+  - 大文字/小文字を区別しない (`/gi` flag)
+  - 除外ノード: FencedCode, InlineCode, Link等をスキップ
+- **5-2**: リンクDecoration
+  - 検出されたタイトルに `cm-md-autolink` クラスを適用（青色下線）
+  - クリック時に `history.pushState` + `popstate` イベント経由でSPA遷移
+  - カーソル内も同スタイル維持（リンクは常に表示）
+- **実装詳細**:
+  - `autoLinkConfigCompartment` (Compartment) でタイトルの動的更新をサポート
+  - `PageEditor` の `titles`, `orgId`, `teamId`, `excludeRefIds` propsから設定
+  - 自ページのrefIdは `excludeRefIds` で除外
 ヘッダータイトル補完によるembed実現。
 
 - **4-1**: ヘッダータイトル補完

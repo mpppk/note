@@ -1,7 +1,12 @@
 import { markdown } from "@codemirror/lang-markdown";
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	autoLinkConfig,
+	autoLinkStaticExtensions,
+	type TitleEntry,
+} from "#/components/live-editor/extensions/auto-link";
 import { livePreview } from "#/components/live-editor/extensions/live-preview";
 import {
 	baseTheme,
@@ -21,6 +26,12 @@ type PageEditorProps = {
 	onSave: (sectionId: string, body: string) => Promise<void>;
 	dark?: boolean;
 	placeholder?: string;
+	/** Page titles for auto-link detection */
+	titles?: TitleEntry[];
+	orgId?: string;
+	teamId?: string;
+	/** Page IDs to exclude from auto-link (e.g. the current page) */
+	excludeRefIds?: string[];
 };
 
 export function PageEditor({
@@ -28,6 +39,10 @@ export function PageEditor({
 	onSave,
 	dark = false,
 	placeholder,
+	titles,
+	orgId,
+	teamId,
+	excludeRefIds,
 }: PageEditorProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const viewRef = useRef<EditorView | null>(null);
@@ -36,6 +51,18 @@ export function PageEditor({
 	const placeholderRef = useRef(placeholder);
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const lastSavedRef = useRef<Map<string, string>>(new Map());
+	// Stable ref for the compartment (same instance across renders)
+	const autoLinkCompartmentRef = useRef(new Compartment());
+
+	// Save status for UI feedback
+	const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">(
+		"idle",
+	);
+	const saveStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	);
+	const setSaveStatusRef = useRef(setSaveStatus);
+	setSaveStatusRef.current = setSaveStatus;
 
 	// Keep mutable refs up to date each render
 	sectionsRef.current = sections;
@@ -46,12 +73,27 @@ export function PageEditor({
 		const ranges = view.state.field(sectionRangesField);
 		const docStr = view.state.doc.toString();
 		const split = splitDoc(docStr, ranges);
+		const promises: Promise<void>[] = [];
 		for (const { id, body } of split) {
 			const last = lastSavedRef.current.get(id);
 			if (last !== undefined && last !== body) {
 				lastSavedRef.current.set(id, body);
-				onSaveRef.current(id, body).catch(console.error);
+				promises.push(onSaveRef.current(id, body));
 			}
+		}
+		if (promises.length > 0) {
+			setSaveStatusRef.current("saving");
+			if (saveStatusTimeoutRef.current)
+				clearTimeout(saveStatusTimeoutRef.current);
+			Promise.all(promises)
+				.then(() => {
+					setSaveStatusRef.current("saved");
+					saveStatusTimeoutRef.current = setTimeout(
+						() => setSaveStatusRef.current("idle"),
+						2000,
+					);
+				})
+				.catch(console.error);
 		}
 	}, []);
 
@@ -63,6 +105,8 @@ export function PageEditor({
 		lastSavedRef.current = new Map(
 			sectionsRef.current.map((s) => [s.id, s.body]),
 		);
+
+		const alComp = autoLinkCompartmentRef.current;
 
 		const updateListener = EditorView.updateListener.of((update) => {
 			if (!update.docChanged) return;
@@ -90,6 +134,9 @@ export function PageEditor({
 					},
 				}),
 				sectionRangesField.init(() => ranges),
+				// Auto-link: static extensions always present; config in compartment
+				autoLinkStaticExtensions(),
+				alComp.of([]),
 			],
 		});
 
@@ -101,10 +148,30 @@ export function PageEditor({
 				clearTimeout(debounceRef.current);
 				debounceRef.current = null;
 			}
+			if (saveStatusTimeoutRef.current) {
+				clearTimeout(saveStatusTimeoutRef.current);
+				saveStatusTimeoutRef.current = null;
+			}
 			view.destroy();
 			viewRef.current = null;
 		};
 	}, [dark, saveChanges]);
+
+	// Reconfigure auto-link when titles or routing context changes
+	useEffect(() => {
+		const view = viewRef.current;
+		if (!view) return;
+		const alComp = autoLinkCompartmentRef.current;
+		if (titles?.length && orgId && teamId) {
+			view.dispatch({
+				effects: alComp.reconfigure(
+					autoLinkConfig({ titles, orgId, teamId, excludeRefIds }),
+				),
+			});
+		} else {
+			view.dispatch({ effects: alComp.reconfigure([]) });
+		}
+	}, [titles, orgId, teamId, excludeRefIds]);
 
 	// Sync external section changes (e.g. after server re-fetch)
 	useEffect(() => {
@@ -129,5 +196,14 @@ export function PageEditor({
 		lastSavedRef.current = new Map(sections.map((s) => [s.id, s.body]));
 	}, [sections]);
 
-	return <div ref={containerRef} className="page-editor" />;
+	return (
+		<div className="relative">
+			<div ref={containerRef} className="page-editor" />
+			{saveStatus !== "idle" && (
+				<div className="absolute top-1 right-2 text-xs text-muted-foreground pointer-events-none select-none">
+					{saveStatus === "saving" ? "Saving…" : "Saved"}
+				</div>
+			)}
+		</div>
+	);
 }

@@ -344,6 +344,10 @@ function PageDetailPage() {
 								updateBody.mutateAsync({ sectionId, body })
 							}
 							dark={dark}
+							titles={teamTitles ?? []}
+							orgId={orgId}
+							teamId={teamId}
+							excludeRefIds={[pageId]}
 						/>
 					) : (
 						<DndContext
