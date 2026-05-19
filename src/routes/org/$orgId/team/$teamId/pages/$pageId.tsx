@@ -501,7 +501,7 @@ function EmbedPageView({
 	});
 
 	return (
-		<div className="border-l-2 border-primary/20 pl-3 ml-1">
+		<div>
 			{embedPage.sections.map((s) => (
 				<div key={s.id} className="mb-1">
 					{s.type === "text" ? (
