@@ -87,3 +87,38 @@ export function splitDoc(
 		body: doc.slice(range.from, range.to),
 	}));
 }
+
+const H1H2_PREFIX_RE = /^#{1,2}(?:[ \t]|\n|$)/;
+const EMBEDDED_H1H2_RE = /\n#{1,2}(?:[ \t]|\n|$)/;
+
+/** Returns true if body starts with an H1 or H2 heading. */
+export function startsWithH1H2(body: string): boolean {
+	return H1H2_PREFIX_RE.test(body);
+}
+
+/**
+ * Returns the index of the '#' character of the first H1/H2 heading embedded
+ * inside the body (preceded by '\n', not at position 0). Returns -1 if none.
+ */
+export function findFirstEmbeddedH1H2(body: string): number {
+	const match = EMBEDDED_H1H2_RE.exec(body);
+	return match ? match.index + 1 : -1;
+}
+
+/**
+ * Splits body at every embedded H1/H2 boundary.
+ * Returns [contentBeforeFirstHeading, headingSection1, headingSection2, ...].
+ * Returns [body] unchanged if no embedded headings exist.
+ */
+export function splitBodyAtAllH1H2(body: string): string[] {
+	const results: string[] = [];
+	let remaining = body;
+	while (true) {
+		const hashPos = findFirstEmbeddedH1H2(remaining);
+		if (hashPos === -1) break;
+		results.push(remaining.slice(0, hashPos - 1).trimEnd());
+		remaining = remaining.slice(hashPos);
+	}
+	results.push(remaining);
+	return results;
+}

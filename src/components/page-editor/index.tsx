@@ -20,11 +20,13 @@ import {
 } from "#/components/live-editor/theme";
 import { sectionSeparator } from "./section-separator";
 import {
+	findFirstEmbeddedH1H2,
 	mergeSections,
 	moveSectionEffect,
 	sectionRangesField,
 	setSectionRangesEffect,
 	splitDoc,
+	startsWithH1H2,
 } from "./section-state";
 
 type SectionInput = {
@@ -37,6 +39,10 @@ type PageEditorProps = {
 	onSave: (sectionId: string, body: string) => Promise<void>;
 	/** Called when section order changes (for API persistence) */
 	onReorder?: (orderedSectionIds: string[]) => void;
+	/** Called to insert a new section immediately after the given section. Returns the new section ID. */
+	onAddSectionAfter?: (afterSectionId: string, body: string) => Promise<string>;
+	/** Called to delete a section (used when merging heading sections). */
+	onDeleteSection?: (sectionId: string) => Promise<void>;
 	dark?: boolean;
 	placeholder?: string;
 	/** Page titles for auto-link detection */
@@ -51,6 +57,8 @@ export function PageEditor({
 	sections,
 	onSave,
 	onReorder,
+	onAddSectionAfter,
+	onDeleteSection,
 	dark = false,
 	placeholder,
 	titles,
@@ -63,6 +71,9 @@ export function PageEditor({
 	const sectionsRef = useRef(sections);
 	const onSaveRef = useRef(onSave);
 	const onReorderRef = useRef(onReorder);
+	const onAddSectionAfterRef = useRef(onAddSectionAfter);
+	const onDeleteSectionRef = useRef(onDeleteSection);
+	const reconciliationInProgressRef = useRef(false);
 	const placeholderRef = useRef(placeholder);
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const lastSavedRef = useRef<Map<string, string>>(new Map());
@@ -86,6 +97,8 @@ export function PageEditor({
 	sectionsRef.current = sections;
 	onSaveRef.current = onSave;
 	onReorderRef.current = onReorder;
+	onAddSectionAfterRef.current = onAddSectionAfter;
+	onDeleteSectionRef.current = onDeleteSection;
 	placeholderRef.current = placeholder;
 
 	const saveChanges = useCallback((view: EditorView) => {
@@ -113,6 +126,77 @@ export function PageEditor({
 					);
 				})
 				.catch(console.error);
+		}
+	}, []);
+
+	const reconcileStructure = useCallback(async (view: EditorView) => {
+		if (reconciliationInProgressRef.current) return;
+		if (!onAddSectionAfterRef.current && !onDeleteSectionRef.current) return;
+		reconciliationInProgressRef.current = true;
+		try {
+			// ── Phase 1: Splits (last → first to avoid offset drift) ──
+			for (
+				let i = view.state.field(sectionRangesField).length - 1;
+				i >= 0;
+				i--
+			) {
+				const ranges = view.state.field(sectionRangesField);
+				const range = ranges[i];
+				const body = view.state.doc.sliceString(range.from, range.to);
+
+				const hashPos = findFirstEmbeddedH1H2(body);
+				if (hashPos === -1 || !onAddSectionAfterRef.current) continue;
+
+				const afterBody = body.slice(hashPos);
+
+				const newId = await onAddSectionAfterRef.current(range.id, afterBody);
+				lastSavedRef.current.set(newId, afterBody);
+				// lastSavedRef for range.id intentionally NOT updated here so
+				// saveChanges detects the diff and saves the trimmed beforeBody.
+
+				// Single atomic dispatch: insert '\n' to form '\n\n' separator + update ranges.
+				// setSectionRangesEffect takes priority over mapPos in sectionRangesField.update.
+				const insertAt = range.from + hashPos - 1; // position of existing '\n'
+				const beforeEnd = range.from + hashPos - 1;
+				const afterStart = range.from + hashPos + 1; // +1 for the inserted '\n'
+				const newRanges = [
+					...ranges.slice(0, i),
+					{ id: range.id, from: range.from, to: beforeEnd },
+					{ id: newId, from: afterStart, to: range.to + 1 },
+					...ranges.slice(i + 1),
+				];
+				view.dispatch({
+					changes: { from: insertAt, to: insertAt, insert: "\n" },
+					effects: setSectionRangesEffect.of(newRanges),
+				});
+			}
+
+			// ── Phase 2: Merges (last → first) ──
+			let ranges = view.state.field(sectionRangesField);
+			const docStr = view.state.doc.toString();
+
+			for (let i = ranges.length - 1; i >= 1; i--) {
+				const range = ranges[i];
+				const body = docStr.slice(range.from, range.to);
+				const lastBody = lastSavedRef.current.get(range.id) ?? "";
+
+				if (!startsWithH1H2(lastBody) || startsWithH1H2(body)) continue;
+				if (!onDeleteSectionRef.current) continue;
+
+				const prevRange = ranges[i - 1];
+				const newRanges = [
+					...ranges.slice(0, i - 1),
+					{ id: prevRange.id, from: prevRange.from, to: range.to },
+					...ranges.slice(i + 1),
+				];
+				// No doc change needed — content is already contiguous in the editor.
+				onDeleteSectionRef.current(range.id).catch(console.error);
+				lastSavedRef.current.delete(range.id);
+				view.dispatch({ effects: setSectionRangesEffect.of(newRanges) });
+				ranges = view.state.field(sectionRangesField);
+			}
+		} finally {
+			reconciliationInProgressRef.current = false;
 		}
 	}, []);
 
@@ -176,7 +260,10 @@ export function PageEditor({
 			)
 				return;
 			if (debounceRef.current) clearTimeout(debounceRef.current);
-			debounceRef.current = setTimeout(() => saveChanges(update.view), 1500);
+			debounceRef.current = setTimeout(async () => {
+				await reconcileStructure(update.view);
+				saveChanges(update.view);
+			}, 1500);
 		});
 
 		const state = EditorState.create({
@@ -207,7 +294,9 @@ export function PageEditor({
 							clearTimeout(debounceRef.current);
 							debounceRef.current = null;
 						}
-						saveChanges(view);
+						reconcileStructure(view)
+							.then(() => saveChanges(view))
+							.catch(console.error);
 					},
 				}),
 				sectionRangesField.init(() => ranges),
@@ -234,7 +323,7 @@ export function PageEditor({
 			view.destroy();
 			viewRef.current = null;
 		};
-	}, [dark, saveChanges]);
+	}, [dark, saveChanges, reconcileStructure]);
 
 	// Reconfigure auto-link when titles or routing context changes
 	useEffect(() => {
