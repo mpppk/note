@@ -11,9 +11,10 @@ import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
 
 /**
  * Determines whether a syntax node (or its range) contains the cursor.
- * Used to decide whether to show raw markdown or rendered decoration.
+ * Returns false when the editor is not focused so blurred lines render fully.
  */
 function cursorInRange(view: EditorView, from: number, to: number): boolean {
+	if (!view.hasFocus) return false;
 	const { state } = view;
 	for (const range of state.selection.ranges) {
 		if (range.from <= to && range.to >= from) {
@@ -324,7 +325,12 @@ const livePreviewPlugin = ViewPlugin.fromClass(
 			this.decorations = buildDecorations(view);
 		}
 		update(update: ViewUpdate) {
-			if (update.docChanged || update.selectionSet || update.viewportChanged) {
+			if (
+				update.docChanged ||
+				update.selectionSet ||
+				update.viewportChanged ||
+				update.focusChanged
+			) {
 				this.decorations = buildDecorations(update.view);
 			}
 		}
