@@ -358,7 +358,7 @@ export function PageEditor({
 		const view = viewRef.current;
 		if (!view) return;
 
-		const { doc: newDoc } = mergeSections(sections);
+		const { doc: newDoc, ranges: newRanges } = mergeSections(sections);
 		const currentDoc = view.state.doc.toString();
 		if (currentDoc === newDoc) return;
 
@@ -370,8 +370,12 @@ export function PageEditor({
 		);
 		if (allSynced) return;
 
+		// Include setSectionRangesEffect so sectionRangesField is updated atomically.
+		// Without it, mapPos maps all positions to 0/docLength for a full-doc replace,
+		// leaving all section ranges as {from:0, to:docLength} which causes false splits.
 		view.dispatch({
 			changes: { from: 0, to: view.state.doc.length, insert: newDoc },
+			effects: setSectionRangesEffect.of(newRanges),
 		});
 		lastSavedRef.current = new Map(sections.map((s) => [s.id, s.body]));
 	}, [sections]);
