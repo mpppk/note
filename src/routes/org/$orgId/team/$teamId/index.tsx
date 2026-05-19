@@ -1,30 +1,69 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { useState } from "react";
+import { Button } from "#/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card";
+import { Input } from "#/components/ui/input";
+import { Label } from "#/components/ui/label";
 import { getSession } from "#/server/auth";
+import { createPage, listPages } from "#/server/notes";
 import { listMembers } from "#/server/orgs";
 
 export const Route = createFileRoute("/org/$orgId/team/$teamId/")({
 	beforeLoad: async () => {
 		const session = await getSession();
-		if (!session) {
-			throw redirect({ to: "/login" });
-		}
+		if (!session) throw redirect({ to: "/login" });
 	},
 	loader: async ({ context, params }) => {
-		await context.queryClient.prefetchQuery({
-			queryKey: ["org-members", params.orgId],
-			queryFn: () => listMembers({ data: { orgId: params.orgId } }),
-		});
+		await Promise.all([
+			context.queryClient.prefetchQuery({
+				queryKey: ["pages", params.teamId],
+				queryFn: () =>
+					listPages({ data: { orgId: params.orgId, teamId: params.teamId } }),
+			}),
+			context.queryClient.prefetchQuery({
+				queryKey: ["org-members", params.orgId],
+				queryFn: () => listMembers({ data: { orgId: params.orgId } }),
+			}),
+		]);
 	},
-	component: TeamHome,
+	component: PagesPage,
 });
 
-function TeamHome() {
+function PagesPage() {
 	const { orgId, teamId } = Route.useParams();
+	const qc = useQueryClient();
+
+	const { data: pages } = useQuery({
+		queryKey: ["pages", teamId],
+		queryFn: () => listPages({ data: { orgId, teamId } }),
+	});
+
 	const { data: org } = useQuery({
 		queryKey: ["org-members", orgId],
 		queryFn: () => listMembers({ data: { orgId } }),
+	});
+
+	const [filter, setFilter] = useState("");
+	const [newTitle, setNewTitle] = useState("");
+	const [error, setError] = useState<string | null>(null);
+
+	const { mutate: handleCreate, isPending: creating } = useMutation({
+		mutationFn: () =>
+			createPage({ data: { orgId, teamId, title: newTitle.trim() } }),
+		onSuccess: () => {
+			setNewTitle("");
+			setError(null);
+			qc.invalidateQueries({ queryKey: ["pages", teamId] });
+			qc.invalidateQueries({ queryKey: ["team-titles", teamId] });
+		},
+		onError: (e: Error) => setError(e.message),
+	});
+
+	const filtered = (pages ?? []).filter((p) => {
+		if (!filter.trim()) return true;
+		const f = filter.toLowerCase();
+		return p.titles.some((t) => t.toLowerCase().includes(f));
 	});
 
 	return (
@@ -45,24 +84,69 @@ function TeamHome() {
 				<span className="font-medium text-foreground">Team</span>
 			</div>
 
-			<h1 className="mb-6 text-2xl font-bold">Team</h1>
+			<h1 className="mb-6 text-2xl font-bold">Pages</h1>
 
-			<div className="grid gap-4 sm:grid-cols-2">
-				<Link
-					to="/org/$orgId/team/$teamId/pages"
-					params={{ orgId, teamId }}
-					className="no-underline text-foreground"
-				>
-					<Card className="h-full transition-colors hover:bg-muted">
-						<CardHeader>
-							<CardTitle>Pages</CardTitle>
-						</CardHeader>
-						<CardContent className="text-sm text-muted-foreground">
-							Markdownページ（埋め込みで再利用可能）
-						</CardContent>
-					</Card>
-				</Link>
+			<div className="mb-4">
+				<Input
+					type="text"
+					placeholder="タイトルで絞り込み"
+					value={filter}
+					onChange={(e) => setFilter(e.target.value)}
+				/>
 			</div>
+
+			<ul className="mb-8 space-y-2">
+				{filtered.map((p) => (
+					<li key={p.id}>
+						<Link
+							to="/org/$orgId/team/$teamId/pages/$pageId"
+							params={{ orgId, teamId, pageId: p.id }}
+							className="block rounded-lg border border-border px-4 py-3 transition-colors hover:bg-muted no-underline text-foreground"
+						>
+							<div className="font-medium">{p.titles[0] ?? "(no title)"}</div>
+							{p.titles.length > 1 && (
+								<div className="text-xs text-muted-foreground mt-0.5">
+									aliases: {p.titles.slice(1).join(", ")}
+								</div>
+							)}
+						</Link>
+					</li>
+				))}
+				{filtered.length === 0 && (
+					<li className="text-muted-foreground text-sm">No pages.</li>
+				)}
+			</ul>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Create Page</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div className="flex flex-col gap-3">
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="page-title">Title *</Label>
+							<Input
+								id="page-title"
+								type="text"
+								placeholder="Page title"
+								value={newTitle}
+								onChange={(e) => setNewTitle(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" && newTitle.trim()) handleCreate();
+								}}
+							/>
+						</div>
+						{error && <p className="text-sm text-destructive">{error}</p>}
+						<Button
+							type="button"
+							disabled={!newTitle.trim() || creating}
+							onClick={() => handleCreate()}
+						>
+							Create
+						</Button>
+					</div>
+				</CardContent>
+			</Card>
 		</main>
 	);
 }
