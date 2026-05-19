@@ -442,7 +442,7 @@ function SortableSection({
 					</Button>
 				</div>
 			</div>
-			<div className="px-3 pb-2 pt-0.5">
+			<div className="pb-2 pt-0.5">
 				{section.type === "text" ? (
 					<InlineBlockEditor
 						body={section.body}
@@ -493,7 +493,7 @@ function EmbedPageView({
 	});
 
 	return (
-		<div className="border-l-2 border-primary/20 pl-3 ml-1">
+		<div>
 			{embedPage.sections.map((s) => (
 				<div key={s.id} className="mb-1">
 					{s.type === "text" ? (
