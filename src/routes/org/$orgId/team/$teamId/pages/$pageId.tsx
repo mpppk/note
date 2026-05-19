@@ -166,6 +166,33 @@ function PageDetailPage() {
 				data: { orgId, sectionId: vars.sectionId, body: vars.body },
 			});
 		},
+		onMutate: async (vars) => {
+			await qc.cancelQueries({ queryKey: ["page-embeds", pageId] });
+			const previousData = qc.getQueryData<{
+				id: string;
+				titles: string[];
+				sections: SectionData[];
+			}>(["page-embeds", pageId]);
+			qc.setQueryData<{
+				id: string;
+				titles: string[];
+				sections: SectionData[];
+			}>(["page-embeds", pageId], (old) => {
+				if (!old) return old;
+				return {
+					...old,
+					sections: old.sections.map((s) =>
+						s.id === vars.sectionId ? { ...s, body: vars.body } : s,
+					),
+				};
+			});
+			return { previousData };
+		},
+		onError: (_err, _vars, ctx) => {
+			if (ctx?.previousData) {
+				qc.setQueryData(["page-embeds", pageId], ctx.previousData);
+			}
+		},
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ["page-embeds", pageId] });
 		},
