@@ -148,11 +148,12 @@ function processHeading(
 	if (cursorInRange(view, from, to)) {
 		// Cursor on heading: apply heading style to the full line (including `# ` prefix)
 		decorations.push({ from, to, deco: headingDeco });
-	} else {
+	} else if (hideEnd < to) {
 		// Cursor off heading: hide `# ` prefix and style content
 		decorations.push({ from: markNode.from, to: hideEnd, deco: hiddenMark });
 		decorations.push({ from: hideEnd, to, deco: headingDeco });
 	}
+	// If no content after marker (e.g., just `#`), show as plain text
 }
 
 function processEmphasis(
