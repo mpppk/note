@@ -69,7 +69,7 @@ export const getPage = createServerFn({ method: "GET" })
 			requireOrgMember(data.orgId, context.user.id),
 		]);
 		if (!page) throw new Error("Page not found");
-		const [pageTitles, sections] = await Promise.all([
+		const [pageTitles, sections] = (await db.batch([
 			db
 				.select()
 				.from(titles)
@@ -80,7 +80,10 @@ export const getPage = createServerFn({ method: "GET" })
 				.from(pageSections)
 				.where(eq(pageSections.pageId, page.id))
 				.orderBy(asc(pageSections.order)),
-		]);
+		] as unknown as Parameters<typeof db.batch>[0])) as [
+			(typeof titles.$inferSelect)[],
+			(typeof pageSections.$inferSelect)[],
+		];
 		return {
 			...page,
 			titles: pageTitles.map((t) => t.title),
@@ -102,24 +105,23 @@ export const createPage = createServerFn({ method: "POST" })
 		const conflict = await findTitleConflict(data.teamId, data.title);
 		if (conflict) throw new Error("Title already in use in this team");
 		const id = crypto.randomUUID();
-		await db.insert(pages).values({
-			id,
-			teamId: data.teamId,
-		});
-		await db.insert(titles).values({
-			teamId: data.teamId,
-			title: data.title.trim(),
-			titleLower: normalize(data.title),
-			refId: id,
-		});
 		const sectionId = crypto.randomUUID();
-		await db.insert(pageSections).values({
-			id: sectionId,
-			pageId: id,
-			type: "text",
-			body: "",
-			order: 1024,
-		});
+		await db.batch([
+			db.insert(pages).values({ id, teamId: data.teamId }),
+			db.insert(titles).values({
+				teamId: data.teamId,
+				title: data.title.trim(),
+				titleLower: normalize(data.title),
+				refId: id,
+			}),
+			db.insert(pageSections).values({
+				id: sectionId,
+				pageId: id,
+				type: "text",
+				body: "",
+				order: 1024,
+			}),
+		] as unknown as Parameters<typeof db.batch>[0]);
 		return { id };
 	});
 
@@ -128,8 +130,10 @@ export const deletePage = createServerFn({ method: "POST" })
 	.inputValidator(z.object({ orgId: z.string(), pageId: z.string() }))
 	.handler(async ({ data, context }) => {
 		await requireOrgMember(data.orgId, context.user.id);
-		await db.delete(titles).where(eq(titles.refId, data.pageId));
-		await db.delete(pages).where(eq(pages.id, data.pageId));
+		await db.batch([
+			db.delete(titles).where(eq(titles.refId, data.pageId)),
+			db.delete(pages).where(eq(pages.id, data.pageId)),
+		] as unknown as Parameters<typeof db.batch>[0]);
 		return { success: true };
 	});
 
@@ -154,17 +158,19 @@ export const addTextSection = createServerFn({ method: "POST" })
 			.limit(1);
 		const nextOrder = (last[0]?.order ?? 0) + 1024;
 		const id = crypto.randomUUID();
-		await db.insert(pageSections).values({
-			id,
-			pageId: data.pageId,
-			type: "text",
-			body: data.body,
-			order: nextOrder,
-		});
-		await db
-			.update(pages)
-			.set({ updatedAt: new Date() })
-			.where(eq(pages.id, data.pageId));
+		await db.batch([
+			db.insert(pageSections).values({
+				id,
+				pageId: data.pageId,
+				type: "text",
+				body: data.body,
+				order: nextOrder,
+			}),
+			db
+				.update(pages)
+				.set({ updatedAt: new Date() })
+				.where(eq(pages.id, data.pageId)),
+		] as unknown as Parameters<typeof db.batch>[0]);
 		return { id };
 	});
 
@@ -206,17 +212,19 @@ export const addTextSectionAfter = createServerFn({ method: "POST" })
 			? (afterSection.order + nextSection.order) / 2
 			: afterSection.order + 1024;
 		const id = crypto.randomUUID();
-		await db.insert(pageSections).values({
-			id,
-			pageId: data.pageId,
-			type: "text",
-			body: data.body,
-			order: newOrder,
-		});
-		await db
-			.update(pages)
-			.set({ updatedAt: new Date() })
-			.where(eq(pages.id, data.pageId));
+		await db.batch([
+			db.insert(pageSections).values({
+				id,
+				pageId: data.pageId,
+				type: "text",
+				body: data.body,
+				order: newOrder,
+			}),
+			db
+				.update(pages)
+				.set({ updatedAt: new Date() })
+				.where(eq(pages.id, data.pageId)),
+		] as unknown as Parameters<typeof db.batch>[0]);
 		return { id };
 	});
 
@@ -231,32 +239,35 @@ export const addEmbedSection = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data, context }) => {
 		await requireOrgMember(data.orgId, context.user.id);
-		// Verify embed target exists
-		const [target] = await db
-			.select()
-			.from(pages)
-			.where(eq(pages.id, data.embedPageId))
-			.limit(1);
+		const [targetRows, lastRows] = (await db.batch([
+			db.select().from(pages).where(eq(pages.id, data.embedPageId)).limit(1),
+			db
+				.select({ order: pageSections.order })
+				.from(pageSections)
+				.where(eq(pageSections.pageId, data.pageId))
+				.orderBy(desc(pageSections.order))
+				.limit(1),
+		] as unknown as Parameters<typeof db.batch>[0])) as [
+			(typeof pages.$inferSelect)[],
+			{ order: number }[],
+		];
+		const [target] = targetRows;
 		if (!target) throw new Error("Embed target page not found");
-		const last = await db
-			.select({ order: pageSections.order })
-			.from(pageSections)
-			.where(eq(pageSections.pageId, data.pageId))
-			.orderBy(desc(pageSections.order))
-			.limit(1);
-		const nextOrder = (last[0]?.order ?? 0) + 1024;
+		const nextOrder = (lastRows[0]?.order ?? 0) + 1024;
 		const id = crypto.randomUUID();
-		await db.insert(pageSections).values({
-			id,
-			pageId: data.pageId,
-			type: "embed",
-			embedPageId: data.embedPageId,
-			order: nextOrder,
-		});
-		await db
-			.update(pages)
-			.set({ updatedAt: new Date() })
-			.where(eq(pages.id, data.pageId));
+		await db.batch([
+			db.insert(pageSections).values({
+				id,
+				pageId: data.pageId,
+				type: "embed",
+				embedPageId: data.embedPageId,
+				order: nextOrder,
+			}),
+			db
+				.update(pages)
+				.set({ updatedAt: new Date() })
+				.where(eq(pages.id, data.pageId)),
+		] as unknown as Parameters<typeof db.batch>[0]);
 		return { id };
 	});
 
@@ -272,22 +283,25 @@ export const addEmbedSectionAfter = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data, context }) => {
 		await requireOrgMember(data.orgId, context.user.id);
-		const [target] = await db
-			.select()
-			.from(pages)
-			.where(eq(pages.id, data.embedPageId))
-			.limit(1);
+		const [targetRows, afterRows] = (await db.batch([
+			db.select().from(pages).where(eq(pages.id, data.embedPageId)).limit(1),
+			db
+				.select({ order: pageSections.order })
+				.from(pageSections)
+				.where(
+					and(
+						eq(pageSections.id, data.afterSectionId),
+						eq(pageSections.pageId, data.pageId),
+					),
+				)
+				.limit(1),
+		] as unknown as Parameters<typeof db.batch>[0])) as [
+			(typeof pages.$inferSelect)[],
+			{ order: number }[],
+		];
+		const [target] = targetRows;
 		if (!target) throw new Error("Embed target page not found");
-		const [afterSection] = await db
-			.select({ order: pageSections.order })
-			.from(pageSections)
-			.where(
-				and(
-					eq(pageSections.id, data.afterSectionId),
-					eq(pageSections.pageId, data.pageId),
-				),
-			)
-			.limit(1);
+		const [afterSection] = afterRows;
 		if (!afterSection) throw new Error("Anchor section not found");
 		const [nextSection] = await db
 			.select({ order: pageSections.order })
@@ -304,17 +318,19 @@ export const addEmbedSectionAfter = createServerFn({ method: "POST" })
 			? (afterSection.order + nextSection.order) / 2
 			: afterSection.order + 1024;
 		const id = crypto.randomUUID();
-		await db.insert(pageSections).values({
-			id,
-			pageId: data.pageId,
-			type: "embed",
-			embedPageId: data.embedPageId,
-			order: newOrder,
-		});
-		await db
-			.update(pages)
-			.set({ updatedAt: new Date() })
-			.where(eq(pages.id, data.pageId));
+		await db.batch([
+			db.insert(pageSections).values({
+				id,
+				pageId: data.pageId,
+				type: "embed",
+				embedPageId: data.embedPageId,
+				order: newOrder,
+			}),
+			db
+				.update(pages)
+				.set({ updatedAt: new Date() })
+				.where(eq(pages.id, data.pageId)),
+		] as unknown as Parameters<typeof db.batch>[0]);
 		return { id };
 	});
 
@@ -329,18 +345,20 @@ export const removeSection = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data, context }) => {
 		await requireOrgMember(data.orgId, context.user.id);
-		await db
-			.delete(pageSections)
-			.where(
-				and(
-					eq(pageSections.id, data.sectionId),
-					eq(pageSections.pageId, data.pageId),
+		await db.batch([
+			db
+				.delete(pageSections)
+				.where(
+					and(
+						eq(pageSections.id, data.sectionId),
+						eq(pageSections.pageId, data.pageId),
+					),
 				),
-			);
-		await db
-			.update(pages)
-			.set({ updatedAt: new Date() })
-			.where(eq(pages.id, data.pageId));
+			db
+				.update(pages)
+				.set({ updatedAt: new Date() })
+				.where(eq(pages.id, data.pageId)),
+		] as unknown as Parameters<typeof db.batch>[0]);
 		return { success: true };
 	});
 
@@ -394,15 +412,16 @@ export const updateSectionBody = createServerFn({ method: "POST" })
 		if (!section) throw new Error("Section not found");
 		if (section.type !== "text")
 			throw new Error("Only text sections can be edited");
-		await db
-			.update(pageSections)
-			.set({ body: data.body, updatedAt: new Date() })
-			.where(eq(pageSections.id, data.sectionId));
-		// Also update parent page timestamp
-		await db
-			.update(pages)
-			.set({ updatedAt: new Date() })
-			.where(eq(pages.id, section.pageId));
+		await db.batch([
+			db
+				.update(pageSections)
+				.set({ body: data.body, updatedAt: new Date() })
+				.where(eq(pageSections.id, data.sectionId)),
+			db
+				.update(pages)
+				.set({ updatedAt: new Date() })
+				.where(eq(pages.id, section.pageId)),
+		] as unknown as Parameters<typeof db.batch>[0]);
 		return { success: true };
 	});
 
@@ -430,13 +449,13 @@ export const getPageWithEmbeds = createServerFn({ method: "GET" })
 		`);
 		const allPageIds = reachableRows.map((r) => r.pageId);
 
-		// 全ページデータを3並列バッチ取得
+		// 全ページデータを1バッチで取得
 		type PageEntry = {
 			page: typeof pages.$inferSelect;
 			pageTitles: (typeof titles.$inferSelect)[];
 			sections: (typeof pageSections.$inferSelect)[];
 		};
-		const [pageRows, titleRows, sectionRows] = await Promise.all([
+		const [pageRows, titleRows, sectionRows] = (await db.batch([
 			db.select().from(pages).where(inArray(pages.id, allPageIds)),
 			db
 				.select()
@@ -448,7 +467,11 @@ export const getPageWithEmbeds = createServerFn({ method: "GET" })
 				.from(pageSections)
 				.where(inArray(pageSections.pageId, allPageIds))
 				.orderBy(asc(pageSections.order)),
-		]);
+		] as unknown as Parameters<typeof db.batch>[0])) as [
+			(typeof pages.$inferSelect)[],
+			(typeof titles.$inferSelect)[],
+			(typeof pageSections.$inferSelect)[],
+		];
 		const pageDataMap = new Map<string, PageEntry>();
 		for (const page of pageRows) {
 			pageDataMap.set(page.id, {
@@ -628,23 +651,19 @@ export const searchBacklinks = createServerFn({ method: "GET" })
 		if (matchingPageIds.size === 0) return [];
 		const ids = Array.from(matchingPageIds);
 
-		// Get titles for matching pages
-		const titleRows = await db
-			.select()
-			.from(titles)
-			.where(inArray(titles.refId, ids));
+		const [titleRows, pageRows] = (await db.batch([
+			db.select().from(titles).where(inArray(titles.refId, ids)),
+			db.select().from(pages).where(inArray(pages.id, ids)),
+		] as unknown as Parameters<typeof db.batch>[0])) as [
+			(typeof titles.$inferSelect)[],
+			(typeof pages.$inferSelect)[],
+		];
 		const titlesByPage = new Map<string, string[]>();
 		for (const t of titleRows) {
 			const arr = titlesByPage.get(t.refId) ?? [];
 			arr.push(t.title);
 			titlesByPage.set(t.refId, arr);
 		}
-
-		// Get page metadata
-		const pageRows = await db
-			.select()
-			.from(pages)
-			.where(inArray(pages.id, ids));
 
 		return pageRows.map((p) => ({
 			id: p.id,
