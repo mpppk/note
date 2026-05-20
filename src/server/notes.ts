@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, asc, desc, eq, gt, inArray, like, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, like, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "#/db";
 import { member } from "#/db/auth-schema";
@@ -406,54 +406,51 @@ export const getPageWithEmbeds = createServerFn({ method: "GET" })
 	.handler(async ({ data, context }) => {
 		await requireOrgMember(data.orgId, context.user.id);
 
-		// BFS: 訪問済みページIDを追跡しながら到達可能な全ページを取得する
-		// 循環参照はvisitedで防止。各BFSレベルでpages/titles/sectionsを3並列バッチ取得
+		// 再帰CTEで到達可能な全ページIDを1クエリで取得（深さ・幅によらず固定クエリ数）
+		// 生SQLではDBの実際のカラム名（snake_case）を使用する（DrizzleのORM層が自動変換する点に注意）
+		// UNIONで重複排除するため循環参照があっても無限ループにならない
+		const reachableRows = await db.all<{ pageId: string }>(sql`
+			WITH RECURSIVE reachable(page_id) AS (
+				SELECT id AS page_id FROM pages WHERE id = ${data.pageId}
+				UNION
+				SELECT ps.embed_page_id
+				FROM page_sections ps
+				JOIN reachable r ON ps.page_id = r.page_id
+				WHERE ps.type = 'embed' AND ps.embed_page_id IS NOT NULL
+			)
+			SELECT page_id AS "pageId" FROM reachable
+		`);
+		const allPageIds = reachableRows.map((r) => r.pageId);
+
+		// 全ページデータを3並列バッチ取得
 		type PageEntry = {
 			page: typeof pages.$inferSelect;
 			pageTitles: (typeof titles.$inferSelect)[];
 			sections: (typeof pageSections.$inferSelect)[];
 		};
+		const [pageRows, titleRows, sectionRows] = await Promise.all([
+			db.select().from(pages).where(inArray(pages.id, allPageIds)),
+			db
+				.select()
+				.from(titles)
+				.where(inArray(titles.refId, allPageIds))
+				.orderBy(asc(titles.createdAt)),
+			db
+				.select()
+				.from(pageSections)
+				.where(inArray(pageSections.pageId, allPageIds))
+				.orderBy(asc(pageSections.order)),
+		]);
 		const pageDataMap = new Map<string, PageEntry>();
-		const visited = new Set<string>();
-		let frontier = [data.pageId];
-
-		while (frontier.length > 0) {
-			const newIds = frontier.filter((id) => !visited.has(id));
-			if (newIds.length === 0) break;
-			for (const id of newIds) visited.add(id);
-
-			const [pageRows, titleRows, sectionRows] = await Promise.all([
-				db.select().from(pages).where(inArray(pages.id, newIds)),
-				db
-					.select()
-					.from(titles)
-					.where(inArray(titles.refId, newIds))
-					.orderBy(asc(titles.createdAt)),
-				db
-					.select()
-					.from(pageSections)
-					.where(inArray(pageSections.pageId, newIds))
-					.orderBy(asc(pageSections.order)),
-			]);
-
-			for (const page of pageRows) {
-				pageDataMap.set(page.id, {
-					page,
-					pageTitles: titleRows.filter((t) => t.refId === page.id),
-					sections: sectionRows.filter((s) => s.pageId === page.id),
-				});
-			}
-
-			// 次のBFSレベル: 未訪問のembedページIDを収集
-			frontier = sectionRows
-				.filter(
-					(s) =>
-						s.type === "embed" && s.embedPageId && !visited.has(s.embedPageId),
-				)
-				.map((s) => s.embedPageId as string);
+		for (const page of pageRows) {
+			pageDataMap.set(page.id, {
+				page,
+				pageTitles: titleRows.filter((t) => t.refId === page.id),
+				sections: sectionRows.filter((s) => s.pageId === page.id),
+			});
 		}
 
-		// メモリ上でツリーを組み立て（visitedで循環参照を保護）
+		// メモリ上でツリーを組み立て（循環参照を保護）
 		type SectionData = {
 			id: string;
 			type: "text" | "embed";
