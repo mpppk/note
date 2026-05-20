@@ -24,6 +24,7 @@ import {
 	findFirstEmbeddedH1H2,
 	mergeSections,
 	moveSectionEffect,
+	SECTION_SEPARATOR,
 	sectionRangesField,
 	setSectionRangesEffect,
 	splitDoc,
@@ -138,78 +139,117 @@ export function PageEditor({
 		}
 	}, []);
 
-	const reconcileStructure = useCallback(async (view: EditorView) => {
-		if (reconciliationInProgressRef.current) return;
-		if (!onAddSectionAfterRef.current && !onDeleteSectionRef.current) return;
-		reconciliationInProgressRef.current = true;
-		try {
-			// ── Phase 1: Splits (last → first to avoid offset drift) ──
-			for (
-				let i = view.state.field(sectionRangesField).length - 1;
-				i >= 0;
-				i--
-			) {
-				const ranges = view.state.field(sectionRangesField);
-				const range = ranges[i];
-				const body = view.state.doc.sliceString(range.from, range.to);
+	const reconcileStructure = useCallback(
+		async (view: EditorView, deleteWhitespaceOnly = false) => {
+			if (reconciliationInProgressRef.current) return;
+			if (!onAddSectionAfterRef.current && !onDeleteSectionRef.current) return;
+			reconciliationInProgressRef.current = true;
+			try {
+				// ── Phase 1: Splits (last → first to avoid offset drift) ──
+				for (
+					let i = view.state.field(sectionRangesField).length - 1;
+					i >= 0;
+					i--
+				) {
+					const ranges = view.state.field(sectionRangesField);
+					const range = ranges[i];
+					const body = view.state.doc.sliceString(range.from, range.to);
 
-				const hashPos = findFirstEmbeddedH1H2(body);
-				if (hashPos === -1 || !onAddSectionAfterRef.current) continue;
+					const hashPos = findFirstEmbeddedH1H2(body);
+					if (hashPos === -1 || !onAddSectionAfterRef.current) continue;
 
-				const afterBody = body.slice(hashPos);
+					const afterBody = body.slice(hashPos);
 
-				const newId = await onAddSectionAfterRef.current(range.id, afterBody);
-				lastSavedRef.current.set(newId, afterBody);
-				// lastSavedRef for range.id intentionally NOT updated here so
-				// saveChanges detects the diff and saves the trimmed beforeBody.
+					const newId = await onAddSectionAfterRef.current(range.id, afterBody);
+					lastSavedRef.current.set(newId, afterBody);
+					// lastSavedRef for range.id intentionally NOT updated here so
+					// saveChanges detects the diff and saves the trimmed beforeBody.
 
-				// Single atomic dispatch: insert '\n' to form '\n\n' separator + update ranges.
-				// setSectionRangesEffect takes priority over mapPos in sectionRangesField.update.
-				const insertAt = range.from + hashPos - 1; // position of existing '\n'
-				const beforeEnd = range.from + hashPos - 1;
-				const afterStart = range.from + hashPos + 1; // +1 for the inserted '\n'
-				const newRanges = [
-					...ranges.slice(0, i),
-					{ id: range.id, from: range.from, to: beforeEnd },
-					{ id: newId, from: afterStart, to: range.to + 1 },
-					...ranges.slice(i + 1),
-				];
-				view.dispatch({
-					changes: { from: insertAt, to: insertAt, insert: "\n" },
-					effects: setSectionRangesEffect.of(newRanges),
-				});
+					// Single atomic dispatch: insert '\n' to form '\n\n' separator + update ranges.
+					// setSectionRangesEffect takes priority over mapPos in sectionRangesField.update.
+					const insertAt = range.from + hashPos - 1; // position of existing '\n'
+					const beforeEnd = range.from + hashPos - 1;
+					const afterStart = range.from + hashPos + 1; // +1 for the inserted '\n'
+					const newRanges = [
+						...ranges.slice(0, i),
+						{ id: range.id, from: range.from, to: beforeEnd },
+						{ id: newId, from: afterStart, to: range.to + 1 },
+						...ranges.slice(i + 1),
+					];
+					view.dispatch({
+						changes: { from: insertAt, to: insertAt, insert: "\n" },
+						effects: setSectionRangesEffect.of(newRanges),
+					});
+				}
+
+				// ── Phase 2: Merges (last → first) ──
+				let ranges = view.state.field(sectionRangesField);
+				const docStr = view.state.doc.toString();
+
+				for (let i = ranges.length - 1; i >= 1; i--) {
+					const range = ranges[i];
+					const body = docStr.slice(range.from, range.to);
+					const lastBody = lastSavedRef.current.get(range.id) ?? "";
+
+					if (!startsWithH1H2(lastBody) || startsWithH1H2(body)) continue;
+					if (!onDeleteSectionRef.current) continue;
+
+					const prevRange = ranges[i - 1];
+					const newRanges = [
+						...ranges.slice(0, i - 1),
+						{ id: prevRange.id, from: prevRange.from, to: range.to },
+						...ranges.slice(i + 1),
+					];
+					// No doc change needed — content is already contiguous in the editor.
+					// Await delete before dispatching so that any saveChanges-triggered
+					// query re-fetch sees the section as already deleted in the DB.
+					await onDeleteSectionRef.current(range.id);
+					lastSavedRef.current.delete(range.id);
+					view.dispatch({ effects: setSectionRangesEffect.of(newRanges) });
+					ranges = view.state.field(sectionRangesField);
+				}
+				// ── Phase 3: Delete whitespace-only sections (blur only) ──
+				if (deleteWhitespaceOnly && onDeleteSectionRef.current) {
+					let ranges = view.state.field(sectionRangesField);
+
+					for (let i = ranges.length - 1; i >= 0; i--) {
+						ranges = view.state.field(sectionRangesField);
+						if (ranges.length <= 1) break;
+
+						const range = ranges[i];
+						const body = view.state.doc.sliceString(range.from, range.to);
+						if (!/^\s*$/.test(body)) continue;
+
+						await onDeleteSectionRef.current(range.id);
+						lastSavedRef.current.delete(range.id);
+
+						const deleteFrom =
+							i === 0 ? range.from : range.from - SECTION_SEPARATOR.length;
+						const deleteTo =
+							i === 0 ? range.to + SECTION_SEPARATOR.length : range.to;
+						const deleteLen = deleteTo - deleteFrom;
+
+						const newRanges = [
+							...ranges.slice(0, i),
+							...ranges.slice(i + 1).map((r) => ({
+								...r,
+								from: r.from - deleteLen,
+								to: r.to - deleteLen,
+							})),
+						];
+
+						view.dispatch({
+							changes: { from: deleteFrom, to: deleteTo, insert: "" },
+							effects: setSectionRangesEffect.of(newRanges),
+						});
+					}
+				}
+			} finally {
+				reconciliationInProgressRef.current = false;
 			}
-
-			// ── Phase 2: Merges (last → first) ──
-			let ranges = view.state.field(sectionRangesField);
-			const docStr = view.state.doc.toString();
-
-			for (let i = ranges.length - 1; i >= 1; i--) {
-				const range = ranges[i];
-				const body = docStr.slice(range.from, range.to);
-				const lastBody = lastSavedRef.current.get(range.id) ?? "";
-
-				if (!startsWithH1H2(lastBody) || startsWithH1H2(body)) continue;
-				if (!onDeleteSectionRef.current) continue;
-
-				const prevRange = ranges[i - 1];
-				const newRanges = [
-					...ranges.slice(0, i - 1),
-					{ id: prevRange.id, from: prevRange.from, to: range.to },
-					...ranges.slice(i + 1),
-				];
-				// No doc change needed — content is already contiguous in the editor.
-				// Await delete before dispatching so that any saveChanges-triggered
-				// query re-fetch sees the section as already deleted in the DB.
-				await onDeleteSectionRef.current(range.id);
-				lastSavedRef.current.delete(range.id);
-				view.dispatch({ effects: setSectionRangesEffect.of(newRanges) });
-				ranges = view.state.field(sectionRangesField);
-			}
-		} finally {
-			reconciliationInProgressRef.current = false;
-		}
-	}, []);
+		},
+		[],
+	);
 
 	// Recreate editor only when dark mode changes
 	useEffect(() => {
@@ -317,7 +357,7 @@ export function PageEditor({
 							clearTimeout(debounceRef.current);
 							debounceRef.current = null;
 						}
-						reconcileStructure(view)
+						reconcileStructure(view, true)
 							.then(() => saveChanges(view))
 							.catch(console.error);
 					},
