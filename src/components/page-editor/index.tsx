@@ -21,6 +21,7 @@ import {
 } from "#/components/live-editor/theme";
 import { sectionSeparator } from "./section-separator";
 import {
+	SECTION_SEPARATOR,
 	findFirstEmbeddedH1H2,
 	mergeSections,
 	moveSectionEffect,
@@ -138,7 +139,7 @@ export function PageEditor({
 		}
 	}, []);
 
-	const reconcileStructure = useCallback(async (view: EditorView) => {
+	const reconcileStructure = useCallback(async (view: EditorView, deleteWhitespaceOnly = false) => {
 		if (reconciliationInProgressRef.current) return;
 		if (!onAddSectionAfterRef.current && !onDeleteSectionRef.current) return;
 		reconciliationInProgressRef.current = true;
@@ -205,6 +206,42 @@ export function PageEditor({
 				lastSavedRef.current.delete(range.id);
 				view.dispatch({ effects: setSectionRangesEffect.of(newRanges) });
 				ranges = view.state.field(sectionRangesField);
+			}
+			// ── Phase 3: Delete whitespace-only sections (blur only) ──
+			if (deleteWhitespaceOnly && onDeleteSectionRef.current) {
+				let ranges = view.state.field(sectionRangesField);
+
+				for (let i = ranges.length - 1; i >= 0; i--) {
+					ranges = view.state.field(sectionRangesField);
+					if (ranges.length <= 1) break;
+
+					const range = ranges[i];
+					const body = view.state.doc.sliceString(range.from, range.to);
+					if (!/^\s*$/.test(body)) continue;
+
+					await onDeleteSectionRef.current(range.id);
+					lastSavedRef.current.delete(range.id);
+
+					const deleteFrom =
+						i === 0 ? range.from : range.from - SECTION_SEPARATOR.length;
+					const deleteTo =
+						i === 0 ? range.to + SECTION_SEPARATOR.length : range.to;
+					const deleteLen = deleteTo - deleteFrom;
+
+					const newRanges = [
+						...ranges.slice(0, i),
+						...ranges.slice(i + 1).map((r) => ({
+							...r,
+							from: r.from - deleteLen,
+							to: r.to - deleteLen,
+						})),
+					];
+
+					view.dispatch({
+						changes: { from: deleteFrom, to: deleteTo, insert: "" },
+						effects: setSectionRangesEffect.of(newRanges),
+					});
+				}
 			}
 		} finally {
 			reconciliationInProgressRef.current = false;
@@ -317,7 +354,7 @@ export function PageEditor({
 							clearTimeout(debounceRef.current);
 							debounceRef.current = null;
 						}
-						reconcileStructure(view)
+						reconcileStructure(view, true)
 							.then(() => saveChanges(view))
 							.catch(console.error);
 					},
