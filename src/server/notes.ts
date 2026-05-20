@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, asc, desc, eq, gt, inArray, like, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, like, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "#/db";
 import { member } from "#/db/auth-schema";
@@ -355,22 +355,23 @@ export const reorderSections = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data, context }) => {
 		await requireOrgMember(data.orgId, context.user.id);
-		const updates = data.sectionIds.map((sectionId, i) =>
-			db
-				.update(pageSections)
-				.set({ order: (i + 1) * 1024 })
-				.where(
-					and(
-						eq(pageSections.id, sectionId),
-						eq(pageSections.pageId, data.pageId),
+		await db.batch([
+			...data.sectionIds.map((sectionId, i) =>
+				db
+					.update(pageSections)
+					.set({ order: (i + 1) * 1024 })
+					.where(
+						and(
+							eq(pageSections.id, sectionId),
+							eq(pageSections.pageId, data.pageId),
+						),
 					),
-				),
-		);
-		await Promise.all(updates);
-		await db
-			.update(pages)
-			.set({ updatedAt: new Date() })
-			.where(eq(pages.id, data.pageId));
+			),
+			db
+				.update(pages)
+				.set({ updatedAt: new Date() })
+				.where(eq(pages.id, data.pageId)),
+		] as unknown as Parameters<typeof db.batch>[0]);
 		return { success: true };
 	});
 
@@ -413,6 +414,51 @@ export const getPageWithEmbeds = createServerFn({ method: "GET" })
 	.handler(async ({ data, context }) => {
 		await requireOrgMember(data.orgId, context.user.id);
 
+		// 再帰CTEで到達可能な全ページIDを1クエリで取得（深さ・幅によらず固定クエリ数）
+		// 生SQLではDBの実際のカラム名（snake_case）を使用する（DrizzleのORM層が自動変換する点に注意）
+		// UNIONで重複排除するため循環参照があっても無限ループにならない
+		const reachableRows = await db.all<{ pageId: string }>(sql`
+			WITH RECURSIVE reachable(page_id) AS (
+				SELECT id AS page_id FROM pages WHERE id = ${data.pageId}
+				UNION
+				SELECT ps.embed_page_id
+				FROM page_sections ps
+				JOIN reachable r ON ps.page_id = r.page_id
+				WHERE ps.type = 'embed' AND ps.embed_page_id IS NOT NULL
+			)
+			SELECT page_id AS "pageId" FROM reachable
+		`);
+		const allPageIds = reachableRows.map((r) => r.pageId);
+
+		// 全ページデータを3並列バッチ取得
+		type PageEntry = {
+			page: typeof pages.$inferSelect;
+			pageTitles: (typeof titles.$inferSelect)[];
+			sections: (typeof pageSections.$inferSelect)[];
+		};
+		const [pageRows, titleRows, sectionRows] = await Promise.all([
+			db.select().from(pages).where(inArray(pages.id, allPageIds)),
+			db
+				.select()
+				.from(titles)
+				.where(inArray(titles.refId, allPageIds))
+				.orderBy(asc(titles.createdAt)),
+			db
+				.select()
+				.from(pageSections)
+				.where(inArray(pageSections.pageId, allPageIds))
+				.orderBy(asc(pageSections.order)),
+		]);
+		const pageDataMap = new Map<string, PageEntry>();
+		for (const page of pageRows) {
+			pageDataMap.set(page.id, {
+				page,
+				pageTitles: titleRows.filter((t) => t.refId === page.id),
+				sections: sectionRows.filter((s) => s.pageId === page.id),
+			});
+		}
+
+		// メモリ上でツリーを組み立て（循環参照を保護）
 		type SectionData = {
 			id: string;
 			type: "text" | "embed";
@@ -426,66 +472,39 @@ export const getPageWithEmbeds = createServerFn({ method: "GET" })
 			} | null;
 		};
 
-		async function expandPage(
+		const treeVisited = new Set<string>();
+		function buildPage(
 			pageId: string,
-			visited: Set<string>,
-		): Promise<{
-			id: string;
-			titles: string[];
-			sections: SectionData[];
-		} | null> {
-			if (visited.has(pageId)) return null; // circular reference
-			visited.add(pageId);
+		): { id: string; titles: string[]; sections: SectionData[] } | null {
+			if (treeVisited.has(pageId)) return null;
+			treeVisited.add(pageId);
+			const entry = pageDataMap.get(pageId);
+			if (!entry) return null;
 
-			const [page] = await db
-				.select()
-				.from(pages)
-				.where(eq(pages.id, pageId))
-				.limit(1);
-			if (!page) return null;
-
-			const [pageTitles, sections] = await Promise.all([
-				db
-					.select()
-					.from(titles)
-					.where(eq(titles.refId, pageId))
-					.orderBy(asc(titles.createdAt)),
-				db
-					.select()
-					.from(pageSections)
-					.where(eq(pageSections.pageId, pageId))
-					.orderBy(asc(pageSections.order)),
-			]);
-
-			const result: SectionData[] = await Promise.all(
-				sections.map(async (s) => {
-					const sectionData: SectionData = {
-						id: s.id,
-						type: s.type as "text" | "embed",
-						body: s.body,
-						order: s.order,
-						embedPageId: s.embedPageId,
-					};
-					if (s.type === "embed" && s.embedPageId) {
-						sectionData.embedPage = await expandPage(
-							s.embedPageId,
-							new Set(visited),
-						);
-					}
-					return sectionData;
-				}),
-			);
+			const sections: SectionData[] = entry.sections.map((s) => {
+				const sd: SectionData = {
+					id: s.id,
+					type: s.type as "text" | "embed",
+					body: s.body,
+					order: s.order,
+					embedPageId: s.embedPageId,
+				};
+				if (s.type === "embed" && s.embedPageId) {
+					sd.embedPage = buildPage(s.embedPageId);
+				}
+				return sd;
+			});
 
 			return {
-				id: page.id,
-				titles: pageTitles.map((t) => t.title),
-				sections: result,
+				id: entry.page.id,
+				titles: entry.pageTitles.map((t) => t.title),
+				sections,
 			};
 		}
 
-		const expanded = await expandPage(data.pageId, new Set());
-		if (!expanded) throw new Error("Page not found");
-		return expanded;
+		const result = buildPage(data.pageId);
+		if (!result) throw new Error("Page not found");
+		return result;
 	});
 
 // ─── Titles ──────────────────────────────────────────────────────────────────
