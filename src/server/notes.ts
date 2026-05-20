@@ -410,7 +410,7 @@ export const getPageWithEmbeds = createServerFn({ method: "GET" })
 		// UNIONで重複排除するため循環参照があっても無限ループにならない
 		const reachableRows = await db.all<{ pageId: string }>(sql`
 			WITH RECURSIVE reachable(pageId) AS (
-				VALUES(${data.pageId})
+				SELECT ${data.pageId}
 				UNION
 				SELECT ps.embedPageId
 				FROM page_sections ps
