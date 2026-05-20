@@ -347,25 +347,23 @@ export const reorderSections = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data, context }) => {
 		await requireOrgMember(data.orgId, context.user.id);
-		await db.batch(
-			[
-				...data.sectionIds.map((sectionId, i) =>
-					db
-						.update(pageSections)
-						.set({ order: (i + 1) * 1024 })
-						.where(
-							and(
-								eq(pageSections.id, sectionId),
-								eq(pageSections.pageId, data.pageId),
-							),
-						),
-				),
+		await db.batch([
+			...data.sectionIds.map((sectionId, i) =>
 				db
-					.update(pages)
-					.set({ updatedAt: new Date() })
-					.where(eq(pages.id, data.pageId)),
-			] as unknown as Parameters<typeof db.batch>[0],
-		);
+					.update(pageSections)
+					.set({ order: (i + 1) * 1024 })
+					.where(
+						and(
+							eq(pageSections.id, sectionId),
+							eq(pageSections.pageId, data.pageId),
+						),
+					),
+			),
+			db
+				.update(pages)
+				.set({ updatedAt: new Date() })
+				.where(eq(pages.id, data.pageId)),
+		] as unknown as Parameters<typeof db.batch>[0]);
 		return { success: true };
 	});
 
@@ -460,7 +458,11 @@ export const getPageWithEmbeds = createServerFn({ method: "GET" })
 			body: string;
 			order: number;
 			embedPageId: string | null;
-			embedPage?: { id: string; titles: string[]; sections: SectionData[] } | null;
+			embedPage?: {
+				id: string;
+				titles: string[];
+				sections: SectionData[];
+			} | null;
 		};
 
 		function buildPage(
