@@ -112,6 +112,14 @@ export const createPage = createServerFn({ method: "POST" })
 			titleLower: normalize(data.title),
 			refId: id,
 		});
+		const sectionId = crypto.randomUUID();
+		await db.insert(pageSections).values({
+			id: sectionId,
+			pageId: id,
+			type: "text",
+			body: "",
+			order: 1024,
+		});
 		return { id };
 	});
 

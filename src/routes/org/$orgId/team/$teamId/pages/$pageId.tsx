@@ -29,6 +29,7 @@ import {
 import { getSession } from "#/server/auth";
 import {
 	addEmbedSectionAfter,
+	addTextSection,
 	addTextSectionAfter,
 	addTitle,
 	deletePage,
@@ -230,6 +231,12 @@ function PageDetailPage() {
 			qc.invalidateQueries({ queryKey: ["page-embeds", pageId] }),
 	});
 
+	const addFirstSection = useMutation({
+		mutationFn: () => addTextSection({ data: { orgId, pageId, body: "" } }),
+		onSuccess: () =>
+			qc.invalidateQueries({ queryKey: ["page-embeds", pageId] }),
+	});
+
 	const reconciledSectionIds = useRef(new Set<string>());
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: mutations and qc are stable references; reconciledSectionIds is a ref
@@ -387,9 +394,14 @@ function PageDetailPage() {
 				</CardHeader>
 				<CardContent>
 					{orderedIds.length === 0 ? (
-						<p className="text-sm text-muted-foreground">
-							まだセクションがありません。
-						</p>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => addFirstSection.mutate()}
+							disabled={addFirstSection.isPending}
+						>
+							最初のセクションを追加
+						</Button>
 					) : (
 						<>
 							{/* Text sections: unified Live Preview editor */}
