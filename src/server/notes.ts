@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, asc, desc, eq, gt, inArray, like, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, like, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "#/db";
 import { member } from "#/db/auth-schema";
@@ -406,52 +406,54 @@ export const getPageWithEmbeds = createServerFn({ method: "GET" })
 	.handler(async ({ data, context }) => {
 		await requireOrgMember(data.orgId, context.user.id);
 
-		// Step 1: 再帰CTEで到達可能な全ページIDをDBで一括取得（深さ・幅によらず1クエリ）
-		// UNIONで重複排除するため循環参照があっても無限ループにならない
-		const reachableRows = await db.all<{ pageId: string }>(sql`
-			WITH RECURSIVE reachable(pageId) AS (
-				SELECT id AS pageId FROM pages WHERE id = ${data.pageId}
-				UNION
-				SELECT ps.embedPageId
-				FROM page_sections ps
-				JOIN reachable r ON ps.pageId = r.pageId
-				WHERE ps.type = 'embed' AND ps.embedPageId IS NOT NULL
-			)
-			SELECT pageId FROM reachable
-		`);
-		const allPageIds = reachableRows.map((r) => r.pageId);
-
-		// Step 2: 全ページデータを3並列バッチ取得
-		const [pageRows, titleRows, sectionRows] = await Promise.all([
-			db.select().from(pages).where(inArray(pages.id, allPageIds)),
-			db
-				.select()
-				.from(titles)
-				.where(inArray(titles.refId, allPageIds))
-				.orderBy(asc(titles.createdAt)),
-			db
-				.select()
-				.from(pageSections)
-				.where(inArray(pageSections.pageId, allPageIds))
-				.orderBy(asc(pageSections.order)),
-		]);
-
-		// Step 3: pageId → データのマップを構築
+		// BFS: 訪問済みページIDを追跡しながら到達可能な全ページを取得する
+		// 循環参照はvisitedで防止。各BFSレベルでpages/titles/sectionsを3並列バッチ取得
 		type PageEntry = {
 			page: typeof pages.$inferSelect;
 			pageTitles: (typeof titles.$inferSelect)[];
 			sections: (typeof pageSections.$inferSelect)[];
 		};
 		const pageDataMap = new Map<string, PageEntry>();
-		for (const page of pageRows) {
-			pageDataMap.set(page.id, {
-				page,
-				pageTitles: titleRows.filter((t) => t.refId === page.id),
-				sections: sectionRows.filter((s) => s.pageId === page.id),
-			});
+		const visited = new Set<string>();
+		let frontier = [data.pageId];
+
+		while (frontier.length > 0) {
+			const newIds = frontier.filter((id) => !visited.has(id));
+			if (newIds.length === 0) break;
+			for (const id of newIds) visited.add(id);
+
+			const [pageRows, titleRows, sectionRows] = await Promise.all([
+				db.select().from(pages).where(inArray(pages.id, newIds)),
+				db
+					.select()
+					.from(titles)
+					.where(inArray(titles.refId, newIds))
+					.orderBy(asc(titles.createdAt)),
+				db
+					.select()
+					.from(pageSections)
+					.where(inArray(pageSections.pageId, newIds))
+					.orderBy(asc(pageSections.order)),
+			]);
+
+			for (const page of pageRows) {
+				pageDataMap.set(page.id, {
+					page,
+					pageTitles: titleRows.filter((t) => t.refId === page.id),
+					sections: sectionRows.filter((s) => s.pageId === page.id),
+				});
+			}
+
+			// 次のBFSレベル: 未訪問のembedページIDを収集
+			frontier = sectionRows
+				.filter(
+					(s) =>
+						s.type === "embed" && s.embedPageId && !visited.has(s.embedPageId),
+				)
+				.map((s) => s.embedPageId as string);
 		}
 
-		// Step 4: メモリ上でツリーを組み立て（visitedで循環参照を保護）
+		// メモリ上でツリーを組み立て（visitedで循環参照を保護）
 		type SectionData = {
 			id: string;
 			type: "text" | "embed";
@@ -465,12 +467,12 @@ export const getPageWithEmbeds = createServerFn({ method: "GET" })
 			} | null;
 		};
 
+		const treeVisited = new Set<string>();
 		function buildPage(
 			pageId: string,
-			visited: Set<string>,
 		): { id: string; titles: string[]; sections: SectionData[] } | null {
-			if (visited.has(pageId)) return null;
-			visited.add(pageId);
+			if (treeVisited.has(pageId)) return null;
+			treeVisited.add(pageId);
 			const entry = pageDataMap.get(pageId);
 			if (!entry) return null;
 
@@ -483,7 +485,7 @@ export const getPageWithEmbeds = createServerFn({ method: "GET" })
 					embedPageId: s.embedPageId,
 				};
 				if (s.type === "embed" && s.embedPageId) {
-					sd.embedPage = buildPage(s.embedPageId, new Set(visited));
+					sd.embedPage = buildPage(s.embedPageId);
 				}
 				return sd;
 			});
@@ -495,7 +497,7 @@ export const getPageWithEmbeds = createServerFn({ method: "GET" })
 			};
 		}
 
-		const result = buildPage(data.pageId, new Set());
+		const result = buildPage(data.pageId);
 		if (!result) throw new Error("Page not found");
 		return result;
 	});
