@@ -21,10 +21,10 @@ import {
 } from "#/components/live-editor/theme";
 import { sectionSeparator } from "./section-separator";
 import {
-	SECTION_SEPARATOR,
 	findFirstEmbeddedH1H2,
 	mergeSections,
 	moveSectionEffect,
+	SECTION_SEPARATOR,
 	sectionRangesField,
 	setSectionRangesEffect,
 	splitDoc,
