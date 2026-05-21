@@ -43,6 +43,13 @@
       "when": 1747584000000,
       "tag": "0005_page_only_embed",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1748044800000,
+      "tag": "0006_yjs_state",
+      "breakpoints": true
     }
   ]
 }
