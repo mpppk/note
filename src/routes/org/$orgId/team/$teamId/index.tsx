@@ -94,10 +94,20 @@ function PagesPage() {
 
 			<div className="mb-6 flex items-center justify-between">
 				<h1 className="text-2xl font-bold">Pages</h1>
-				<Button type="button" size="sm" onClick={() => setModalOpen(true)}>
-					<PlusIcon />
-					New Page
-				</Button>
+				<div className="flex items-center gap-2">
+					<Button asChild variant="outline" size="sm">
+						<Link
+							to="/org/$orgId/team/$teamId/settings"
+							params={{ orgId, teamId }}
+						>
+							Settings
+						</Link>
+					</Button>
+					<Button type="button" size="sm" onClick={() => setModalOpen(true)}>
+						<PlusIcon />
+						New Page
+					</Button>
+				</div>
 			</div>
 
 			<div className="mb-4">

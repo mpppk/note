@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OrgsRouteImport } from './routes/orgs'
 import { Route as LoginRouteImport } from './routes/login'
@@ -17,15 +18,22 @@ import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiUploadRouteImport } from './routes/api/upload'
 import { Route as OrgOrgIdIndexRouteImport } from './routes/org/$orgId/index'
+import { Route as OrgOrgIdSettingsRouteImport } from './routes/org/$orgId/settings'
 import { Route as ApiImagesSplatRouteImport } from './routes/api/images/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as OrgOrgIdTeamTeamIdIndexRouteImport } from './routes/org/$orgId/team/$teamId/index'
+import { Route as OrgOrgIdTeamTeamIdSettingsRouteImport } from './routes/org/$orgId/team/$teamId/settings'
 import { Route as OrgOrgIdTeamTeamIdPagesIndexRouteImport } from './routes/org/$orgId/team/$teamId/pages/index'
 import { Route as OrgOrgIdTeamTeamIdPagesPageIdRouteImport } from './routes/org/$orgId/team/$teamId/pages/$pageId'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -63,6 +71,11 @@ const OrgOrgIdIndexRoute = OrgOrgIdIndexRouteImport.update({
   path: '/org/$orgId/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrgOrgIdSettingsRoute = OrgOrgIdSettingsRouteImport.update({
+  id: '/org/$orgId/settings',
+  path: '/org/$orgId/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiImagesSplatRoute = ApiImagesSplatRouteImport.update({
   id: '/api/images/$',
   path: '/api/images/$',
@@ -76,6 +89,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 const OrgOrgIdTeamTeamIdIndexRoute = OrgOrgIdTeamTeamIdIndexRouteImport.update({
   id: '/org/$orgId/team/$teamId/',
   path: '/org/$orgId/team/$teamId/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrgOrgIdTeamTeamIdSettingsRoute = OrgOrgIdTeamTeamIdSettingsRouteImport.update({
+  id: '/org/$orgId/team/$teamId/settings',
+  path: '/org/$orgId/team/$teamId/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrgOrgIdTeamTeamIdPagesIndexRoute =
@@ -97,12 +115,15 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/orgs': typeof OrgsRoute
   '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/api/upload': typeof ApiUploadRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/images/$': typeof ApiImagesSplatRoute
   '/org/$orgId/': typeof OrgOrgIdIndexRoute
+  '/org/$orgId/settings': typeof OrgOrgIdSettingsRoute
   '/org/$orgId/team/$teamId/': typeof OrgOrgIdTeamTeamIdIndexRoute
+  '/org/$orgId/team/$teamId/settings': typeof OrgOrgIdTeamTeamIdSettingsRoute
   '/org/$orgId/team/$teamId/pages/$pageId': typeof OrgOrgIdTeamTeamIdPagesPageIdRoute
   '/org/$orgId/team/$teamId/pages/': typeof OrgOrgIdTeamTeamIdPagesIndexRoute
 }
@@ -112,12 +133,15 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/orgs': typeof OrgsRoute
   '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/api/upload': typeof ApiUploadRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/images/$': typeof ApiImagesSplatRoute
   '/org/$orgId': typeof OrgOrgIdIndexRoute
+  '/org/$orgId/settings': typeof OrgOrgIdSettingsRoute
   '/org/$orgId/team/$teamId': typeof OrgOrgIdTeamTeamIdIndexRoute
+  '/org/$orgId/team/$teamId/settings': typeof OrgOrgIdTeamTeamIdSettingsRoute
   '/org/$orgId/team/$teamId/pages/$pageId': typeof OrgOrgIdTeamTeamIdPagesPageIdRoute
   '/org/$orgId/team/$teamId/pages': typeof OrgOrgIdTeamTeamIdPagesIndexRoute
 }
@@ -128,12 +152,15 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/orgs': typeof OrgsRoute
   '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/api/upload': typeof ApiUploadRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/images/$': typeof ApiImagesSplatRoute
   '/org/$orgId/': typeof OrgOrgIdIndexRoute
+  '/org/$orgId/settings': typeof OrgOrgIdSettingsRoute
   '/org/$orgId/team/$teamId/': typeof OrgOrgIdTeamTeamIdIndexRoute
+  '/org/$orgId/team/$teamId/settings': typeof OrgOrgIdTeamTeamIdSettingsRoute
   '/org/$orgId/team/$teamId/pages/$pageId': typeof OrgOrgIdTeamTeamIdPagesPageIdRoute
   '/org/$orgId/team/$teamId/pages/': typeof OrgOrgIdTeamTeamIdPagesIndexRoute
 }
@@ -145,12 +172,15 @@ export interface FileRouteTypes {
     | '/login'
     | '/orgs'
     | '/profile'
+    | '/settings'
     | '/signup'
     | '/api/upload'
     | '/api/auth/$'
     | '/api/images/$'
     | '/org/$orgId/'
+    | '/org/$orgId/settings'
     | '/org/$orgId/team/$teamId/'
+    | '/org/$orgId/team/$teamId/settings'
     | '/org/$orgId/team/$teamId/pages/$pageId'
     | '/org/$orgId/team/$teamId/pages/'
   fileRoutesByTo: FileRoutesByTo
@@ -160,12 +190,15 @@ export interface FileRouteTypes {
     | '/login'
     | '/orgs'
     | '/profile'
+    | '/settings'
     | '/signup'
     | '/api/upload'
     | '/api/auth/$'
     | '/api/images/$'
     | '/org/$orgId'
+    | '/org/$orgId/settings'
     | '/org/$orgId/team/$teamId'
+    | '/org/$orgId/team/$teamId/settings'
     | '/org/$orgId/team/$teamId/pages/$pageId'
     | '/org/$orgId/team/$teamId/pages'
   id:
@@ -175,12 +208,15 @@ export interface FileRouteTypes {
     | '/login'
     | '/orgs'
     | '/profile'
+    | '/settings'
     | '/signup'
     | '/api/upload'
     | '/api/auth/$'
     | '/api/images/$'
     | '/org/$orgId/'
+    | '/org/$orgId/settings'
     | '/org/$orgId/team/$teamId/'
+    | '/org/$orgId/team/$teamId/settings'
     | '/org/$orgId/team/$teamId/pages/$pageId'
     | '/org/$orgId/team/$teamId/pages/'
   fileRoutesById: FileRoutesById
@@ -191,12 +227,15 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   OrgsRoute: typeof OrgsRoute
   ProfileRoute: typeof ProfileRoute
+  SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
   ApiUploadRoute: typeof ApiUploadRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiImagesSplatRoute: typeof ApiImagesSplatRoute
   OrgOrgIdIndexRoute: typeof OrgOrgIdIndexRoute
+  OrgOrgIdSettingsRoute: typeof OrgOrgIdSettingsRoute
   OrgOrgIdTeamTeamIdIndexRoute: typeof OrgOrgIdTeamTeamIdIndexRoute
+  OrgOrgIdTeamTeamIdSettingsRoute: typeof OrgOrgIdTeamTeamIdSettingsRoute
   OrgOrgIdTeamTeamIdPagesPageIdRoute: typeof OrgOrgIdTeamTeamIdPagesPageIdRoute
   OrgOrgIdTeamTeamIdPagesIndexRoute: typeof OrgOrgIdTeamTeamIdPagesIndexRoute
 }
@@ -208,6 +247,13 @@ declare module '@tanstack/react-router' {
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -259,6 +305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgOrgIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/org/$orgId/settings': {
+      id: '/org/$orgId/settings'
+      path: '/org/$orgId/settings'
+      fullPath: '/org/$orgId/settings'
+      preLoaderRoute: typeof OrgOrgIdSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/images/$': {
       id: '/api/images/$'
       path: '/api/images/$'
@@ -278,6 +331,13 @@ declare module '@tanstack/react-router' {
       path: '/org/$orgId/team/$teamId'
       fullPath: '/org/$orgId/team/$teamId/'
       preLoaderRoute: typeof OrgOrgIdTeamTeamIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/org/$orgId/team/$teamId/settings': {
+      id: '/org/$orgId/team/$teamId/settings'
+      path: '/org/$orgId/team/$teamId/settings'
+      fullPath: '/org/$orgId/team/$teamId/settings'
+      preLoaderRoute: typeof OrgOrgIdTeamTeamIdSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/org/$orgId/team/$teamId/pages/': {
@@ -303,12 +363,15 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   OrgsRoute: OrgsRoute,
   ProfileRoute: ProfileRoute,
+  SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
   ApiUploadRoute: ApiUploadRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiImagesSplatRoute: ApiImagesSplatRoute,
   OrgOrgIdIndexRoute: OrgOrgIdIndexRoute,
+  OrgOrgIdSettingsRoute: OrgOrgIdSettingsRoute,
   OrgOrgIdTeamTeamIdIndexRoute: OrgOrgIdTeamTeamIdIndexRoute,
+  OrgOrgIdTeamTeamIdSettingsRoute: OrgOrgIdTeamTeamIdSettingsRoute,
   OrgOrgIdTeamTeamIdPagesPageIdRoute: OrgOrgIdTeamTeamIdPagesPageIdRoute,
   OrgOrgIdTeamTeamIdPagesIndexRoute: OrgOrgIdTeamTeamIdPagesIndexRoute,
 }
