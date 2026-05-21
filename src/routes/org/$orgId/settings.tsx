@@ -300,8 +300,10 @@ function MembersSection({
 		mutationFn: ({
 			memberId,
 			role,
-		}: { memberId: string; role: "member" | "admin" | "owner" }) =>
-			updateOrgMemberRole({ data: { memberId, orgId, role } }),
+		}: {
+			memberId: string;
+			role: "member" | "admin" | "owner";
+		}) => updateOrgMemberRole({ data: { memberId, orgId, role } }),
 		onSuccess: () => refetchMembers(),
 	});
 
