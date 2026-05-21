@@ -10,6 +10,9 @@
 		"nodejs_compat"
 	],
 	"main": "src/worker.ts",
+	"build": {
+		"command": "bun run build"
+	},
 	"observability": {
 		"logs": {
 			"enabled": true,
