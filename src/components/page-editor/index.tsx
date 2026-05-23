@@ -1,6 +1,7 @@
+import { defaultKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { Compartment, EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import { EditorView, keymap } from "@codemirror/view";
 import { useEffect, useRef, useState } from "react";
 import { yCollab } from "y-codemirror.next";
 import { WebsocketProvider } from "y-websocket";
@@ -219,6 +220,7 @@ export function PageEditor({
 			// Start empty — yCollab populates the doc once Yjs syncs from the server
 			doc: "",
 			extensions: [
+				keymap.of(defaultKeymap),
 				markdown(),
 				livePreview(),
 				EditorView.lineWrapping,
