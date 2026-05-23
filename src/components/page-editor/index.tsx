@@ -1,5 +1,8 @@
 import { defaultKeymap, insertNewlineAndIndent } from "@codemirror/commands";
-import { insertNewlineContinueMarkup, markdown } from "@codemirror/lang-markdown";
+import {
+	insertNewlineContinueMarkup,
+	markdown,
+} from "@codemirror/lang-markdown";
 import { Compartment, EditorState, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { useEffect, useRef, useState } from "react";
