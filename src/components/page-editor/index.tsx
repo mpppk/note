@@ -1,6 +1,6 @@
-import { defaultKeymap } from "@codemirror/commands";
+import { defaultKeymap, insertNewlineAndIndent } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
-import { Compartment, EditorState } from "@codemirror/state";
+import { Compartment, EditorState, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { useEffect, useRef, useState } from "react";
 import { yCollab } from "y-codemirror.next";
@@ -222,6 +222,24 @@ export function PageEditor({
 			// Start empty — yCollab populates the doc once Yjs syncs from the server
 			doc: "",
 			extensions: [
+				// Mobile: markdownKeymap returns false for headings; consume Enter explicitly
+				// so mobile beforeinput isn't handled natively and bypasses Yjs state.
+				Prec.high(
+					keymap.of([
+						{
+							key: "Enter",
+							run: (view) => {
+								const line = view.state.doc.lineAt(
+									view.state.selection.main.from,
+								);
+								if (/^#{1,6} /.test(line.text)) {
+									return insertNewlineAndIndent(view);
+								}
+								return false;
+							},
+						},
+					]),
+				),
 				keymap.of(defaultKeymap),
 				markdown(),
 				livePreview(),
