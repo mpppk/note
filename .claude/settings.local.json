@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"^yjs$|^y-websocket$|^y-codemirror|^y-protocols$|^lib0$\")"
+    ]
+  }
+}

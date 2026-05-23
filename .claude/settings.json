@@ -23,5 +23,8 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "cloudflare@cloudflare": true
   }
 }
