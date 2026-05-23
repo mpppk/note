@@ -4,7 +4,6 @@ import * as path from "node:path";
 import { execSync } from "node:child_process";
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
-const IS_LOCAL = BASE_URL.includes("localhost");
 const EMAIL = process.env.TEST_USER_EMAIL || "test@example.com";
 const PASSWORD = process.env.TEST_USER_PASSWORD || "testpassword123";
 const SCREENSHOT_DIR = "/tmp/live-editor-test-screenshots";
@@ -82,7 +81,7 @@ const href = await orgLink.getAttribute("href");
 orgId = href?.match(/\/org\/([^/]+)/)?.[1] ?? null;
 console.log("  Existing org:", orgId);
 } else {
-const uniqueSlug = `test-org-${RUN_ID}`;
+const uniqueSlug = `test-org-${Date.now()}`;
 console.log(`  Creating org (slug: ${uniqueSlug})...`);
 await page.fill('#org-name', "Test Org");
 await page.fill('#org-slug', uniqueSlug);
