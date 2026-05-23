@@ -5,10 +5,7 @@ import { execSync } from "node:child_process";
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 const IS_LOCAL = BASE_URL.includes("localhost");
-const RUN_ID = Date.now();
-const EMAIL = IS_LOCAL
-  ? (process.env.TEST_USER_EMAIL || "test@example.com")
-  : `test-${RUN_ID}@example.com`;
+const EMAIL = process.env.TEST_USER_EMAIL || "test@example.com";
 const PASSWORD = process.env.TEST_USER_PASSWORD || "testpassword123";
 const SCREENSHOT_DIR = "/tmp/live-editor-test-screenshots";
 
@@ -42,41 +39,32 @@ await page.waitForTimeout(1200);
 }
 
 try {
-// 1. Login (or signup on remote environments with unique email)
+// 1. Login
 console.log("=== 1. Login ===");
-if (!IS_LOCAL) {
-  // On remote, create a fresh account with unique email
-  console.log(`  Signing up as ${EMAIL}...`);
+console.log(`  Logging in as ${EMAIL}...`);
+await go("/login");
+await page.waitForSelector('input[type="email"]');
+await shot("01-login");
+await page.fill('input[type="email"]', EMAIL);
+await page.fill('input[type="password"]', PASSWORD);
+await page.click('button[type="submit"]');
+// Wait up to 12s for SPA navigation away from /login
+for (let i = 0; i < 24; i++) {
+  await page.waitForTimeout(500);
+  if (!page.url().includes("/login")) break;
+}
+if (page.url().includes("/login")) {
+  // Signup if login failed (e.g. first run on local)
+  console.log("  Login failed, attempting signup...");
   await go("/signup");
-  await page.waitForSelector('input[type="email"]');
-  await shot("01-login");
   const nameInput = page.locator('input[id="name"]');
   if (await nameInput.count() > 0) await nameInput.fill("Test User");
   await page.fill('input[type="email"]', EMAIL);
   await page.fill('input[type="password"]', PASSWORD);
   await page.click('button[type="submit"]');
-  await page.waitForURL(u => !u.href.includes("/signup"), { timeout: 15000 }).catch(() => {});
-  await page.waitForTimeout(1500);
-} else {
-  await go("/login");
-  await page.waitForSelector('input[type="email"]');
-  await shot("01-login");
-  await page.fill('input[type="email"]', EMAIL);
-  await page.fill('input[type="password"]', PASSWORD);
-  await page.click('button[type="submit"]');
-  await page.waitForURL(u => !u.href.includes("/login"), { timeout: 10000 }).catch(() => {});
-  await page.waitForTimeout(1000);
-  if (page.url().includes("/login")) {
-    // signup
-    console.log("  Signup required...");
-    await go("/signup");
-    const nameInput = page.locator('input[id="name"]');
-    if (await nameInput.count() > 0) await nameInput.fill("Test User");
-    await page.fill('input[type="email"]', EMAIL);
-    await page.fill('input[type="password"]', PASSWORD);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(u => !u.href.includes("/signup"), { timeout: 10000 }).catch(() => {});
-    await page.waitForTimeout(1000);
+  for (let i = 0; i < 24; i++) {
+    await page.waitForTimeout(500);
+    if (!page.url().includes("/signup")) break;
   }
 }
 await shot("02-logged-in");
