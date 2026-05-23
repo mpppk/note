@@ -110,3 +110,79 @@ export const rejectInvitation = createServerFn({ method: "POST" })
 			body: { invitationId: data.invitationId },
 		});
 	});
+
+export const updateOrg = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.inputValidator(z.object({ orgId: z.string(), name: z.string().min(1) }))
+	.handler(async ({ data }) => {
+		const request = getRequest();
+		return auth.api.updateOrganization({
+			headers: request.headers,
+			body: { data: { name: data.name }, organizationId: data.orgId },
+		});
+	});
+
+export const deleteOrg = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.inputValidator(z.object({ orgId: z.string() }))
+	.handler(async ({ data }) => {
+		const request = getRequest();
+		return auth.api.deleteOrganization({
+			headers: request.headers,
+			body: { organizationId: data.orgId },
+		});
+	});
+
+export const updateTeam = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.inputValidator(z.object({ teamId: z.string(), name: z.string().min(1) }))
+	.handler(async ({ data }) => {
+		const request = getRequest();
+		return auth.api.updateTeam({
+			headers: request.headers,
+			body: { teamId: data.teamId, data: { name: data.name } },
+		});
+	});
+
+export const deleteTeam = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.inputValidator(z.object({ teamId: z.string(), orgId: z.string() }))
+	.handler(async ({ data }) => {
+		const request = getRequest();
+		return auth.api.removeTeam({
+			headers: request.headers,
+			body: { teamId: data.teamId, organizationId: data.orgId },
+		});
+	});
+
+export const removeOrgMember = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.inputValidator(z.object({ memberId: z.string(), orgId: z.string() }))
+	.handler(async ({ data }) => {
+		const request = getRequest();
+		return auth.api.removeMember({
+			headers: request.headers,
+			body: { memberIdOrEmail: data.memberId, organizationId: data.orgId },
+		});
+	});
+
+export const updateOrgMemberRole = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
+	.inputValidator(
+		z.object({
+			memberId: z.string(),
+			orgId: z.string(),
+			role: z.enum(["member", "admin", "owner"]),
+		}),
+	)
+	.handler(async ({ data }) => {
+		const request = getRequest();
+		return auth.api.updateMemberRole({
+			headers: request.headers,
+			body: {
+				memberId: data.memberId,
+				organizationId: data.orgId,
+				role: data.role,
+			},
+		});
+	});
