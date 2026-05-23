@@ -152,7 +152,7 @@ export function PageEditor({
 		const wsBase = `${wsProtocol}//${typeof location !== "undefined" ? location.host : "localhost"}`;
 		const provider = new WebsocketProvider(
 			wsBase,
-			`/api/collab/${pageId}`,
+			`api/collab/${pageId}`,
 			ydoc,
 		);
 		providerRef.current = provider;
