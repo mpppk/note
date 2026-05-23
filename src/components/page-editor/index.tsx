@@ -1,5 +1,5 @@
 import { defaultKeymap, insertNewlineAndIndent } from "@codemirror/commands";
-import { markdown, newlineAndIndentContinueMarkupList } from "@codemirror/lang-markdown";
+import { insertNewlineContinueMarkup, markdown } from "@codemirror/lang-markdown";
 import { Compartment, EditorState, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { useEffect, useRef, useState } from "react";
@@ -230,7 +230,7 @@ export function PageEditor({
 						{
 							key: "Enter",
 							run: (view) => {
-								if (newlineAndIndentContinueMarkupList(view)) {
+								if (insertNewlineContinueMarkup(view)) {
 									return true;
 								}
 								return insertNewlineAndIndent(view);
