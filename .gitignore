@@ -19,3 +19,4 @@ todos.json
 screenshots/
 test-results/
 *.cjs
+verify_heading_enter.ts
