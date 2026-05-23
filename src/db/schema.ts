@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+	blob,
 	index,
 	integer,
 	real,
@@ -13,6 +14,7 @@ export const pages = sqliteTable(
 	{
 		id: text().primaryKey(),
 		teamId: text("team_id").notNull(),
+		yjsState: blob("yjs_state"),
 		createdAt: integer("created_at", { mode: "timestamp" })
 			.notNull()
 			.default(sql`(unixepoch())`),

@@ -54,7 +54,7 @@ export const listPages = createServerFn({ method: "GET" })
 			arr.push(t.title);
 			byPage.set(t.refId, arr);
 		}
-		return pageRows.map((p) => ({
+		return pageRows.map(({ yjsState: _yjs, ...p }) => ({
 			...p,
 			titles: byPage.get(p.id) ?? [],
 		}));
@@ -84,8 +84,9 @@ export const getPage = createServerFn({ method: "GET" })
 			(typeof titles.$inferSelect)[],
 			(typeof pageSections.$inferSelect)[],
 		];
+		const { yjsState: _yjs, ...pageData } = page;
 		return {
-			...page,
+			...pageData,
 			titles: pageTitles.map((t) => t.title),
 			sections,
 		};
