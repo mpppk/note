@@ -407,6 +407,7 @@ function PageDetailPage() {
 							{/* Text sections: unified Live Preview editor */}
 							{textSections.length > 0 && (
 								<PageEditor
+									pageId={pageId}
 									sections={textSections.map((s) => ({
 										id: s.id,
 										body: s.body,

@@ -38,10 +38,11 @@ export const sectionRangesField = StateField.define<SectionRange[]>({
 			if (effect.is(setSectionRangesEffect)) return effect.value;
 		}
 		if (!tr.docChanged) return ranges;
+		const docLen = tr.startState.doc.length;
 		return ranges.map((range) => ({
 			...range,
-			from: tr.changes.mapPos(range.from, -1),
-			to: tr.changes.mapPos(range.to, 1),
+			from: tr.changes.mapPos(Math.min(range.from, docLen), -1),
+			to: tr.changes.mapPos(Math.min(range.to, docLen), 1),
 		}));
 	},
 });
