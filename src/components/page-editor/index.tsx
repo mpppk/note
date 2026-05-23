@@ -1,5 +1,8 @@
 import { defaultKeymap, insertNewlineAndIndent } from "@codemirror/commands";
-import { markdown } from "@codemirror/lang-markdown";
+import {
+	insertNewlineContinueMarkup,
+	markdown,
+} from "@codemirror/lang-markdown";
 import { Compartment, EditorState, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { useEffect, useRef, useState } from "react";
@@ -222,20 +225,18 @@ export function PageEditor({
 			// Start empty — yCollab populates the doc once Yjs syncs from the server
 			doc: "",
 			extensions: [
-				// Mobile: markdownKeymap returns false for headings; consume Enter explicitly
-				// so mobile beforeinput isn't handled natively and bypasses Yjs state.
+				// Mobile: never return false from Enter handler — returning false lets the
+				// browser's native beforeinput fire, bypassing CodeMirror/Yjs state.
+				// Try list continuation first, then fall back to insertNewlineAndIndent.
 				Prec.high(
 					keymap.of([
 						{
 							key: "Enter",
 							run: (view) => {
-								const line = view.state.doc.lineAt(
-									view.state.selection.main.from,
-								);
-								if (/^#{1,6} /.test(line.text)) {
-									return insertNewlineAndIndent(view);
+								if (insertNewlineContinueMarkup(view)) {
+									return true;
 								}
-								return false;
+								return insertNewlineAndIndent(view);
 							},
 						},
 					]),
