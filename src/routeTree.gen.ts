@@ -91,11 +91,12 @@ const OrgOrgIdTeamTeamIdIndexRoute = OrgOrgIdTeamTeamIdIndexRouteImport.update({
   path: '/org/$orgId/team/$teamId/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OrgOrgIdTeamTeamIdSettingsRoute = OrgOrgIdTeamTeamIdSettingsRouteImport.update({
-  id: '/org/$orgId/team/$teamId/settings',
-  path: '/org/$orgId/team/$teamId/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const OrgOrgIdTeamTeamIdSettingsRoute =
+  OrgOrgIdTeamTeamIdSettingsRouteImport.update({
+    id: '/org/$orgId/team/$teamId/settings',
+    path: '/org/$orgId/team/$teamId/settings',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const OrgOrgIdTeamTeamIdPagesIndexRoute =
   OrgOrgIdTeamTeamIdPagesIndexRouteImport.update({
     id: '/org/$orgId/team/$teamId/pages/',
@@ -120,10 +121,10 @@ export interface FileRoutesByFullPath {
   '/api/upload': typeof ApiUploadRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/images/$': typeof ApiImagesSplatRoute
-  '/org/$orgId/': typeof OrgOrgIdIndexRoute
   '/org/$orgId/settings': typeof OrgOrgIdSettingsRoute
-  '/org/$orgId/team/$teamId/': typeof OrgOrgIdTeamTeamIdIndexRoute
+  '/org/$orgId/': typeof OrgOrgIdIndexRoute
   '/org/$orgId/team/$teamId/settings': typeof OrgOrgIdTeamTeamIdSettingsRoute
+  '/org/$orgId/team/$teamId/': typeof OrgOrgIdTeamTeamIdIndexRoute
   '/org/$orgId/team/$teamId/pages/$pageId': typeof OrgOrgIdTeamTeamIdPagesPageIdRoute
   '/org/$orgId/team/$teamId/pages/': typeof OrgOrgIdTeamTeamIdPagesIndexRoute
 }
@@ -138,10 +139,10 @@ export interface FileRoutesByTo {
   '/api/upload': typeof ApiUploadRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/images/$': typeof ApiImagesSplatRoute
-  '/org/$orgId': typeof OrgOrgIdIndexRoute
   '/org/$orgId/settings': typeof OrgOrgIdSettingsRoute
-  '/org/$orgId/team/$teamId': typeof OrgOrgIdTeamTeamIdIndexRoute
+  '/org/$orgId': typeof OrgOrgIdIndexRoute
   '/org/$orgId/team/$teamId/settings': typeof OrgOrgIdTeamTeamIdSettingsRoute
+  '/org/$orgId/team/$teamId': typeof OrgOrgIdTeamTeamIdIndexRoute
   '/org/$orgId/team/$teamId/pages/$pageId': typeof OrgOrgIdTeamTeamIdPagesPageIdRoute
   '/org/$orgId/team/$teamId/pages': typeof OrgOrgIdTeamTeamIdPagesIndexRoute
 }
@@ -157,10 +158,10 @@ export interface FileRoutesById {
   '/api/upload': typeof ApiUploadRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/images/$': typeof ApiImagesSplatRoute
-  '/org/$orgId/': typeof OrgOrgIdIndexRoute
   '/org/$orgId/settings': typeof OrgOrgIdSettingsRoute
-  '/org/$orgId/team/$teamId/': typeof OrgOrgIdTeamTeamIdIndexRoute
+  '/org/$orgId/': typeof OrgOrgIdIndexRoute
   '/org/$orgId/team/$teamId/settings': typeof OrgOrgIdTeamTeamIdSettingsRoute
+  '/org/$orgId/team/$teamId/': typeof OrgOrgIdTeamTeamIdIndexRoute
   '/org/$orgId/team/$teamId/pages/$pageId': typeof OrgOrgIdTeamTeamIdPagesPageIdRoute
   '/org/$orgId/team/$teamId/pages/': typeof OrgOrgIdTeamTeamIdPagesIndexRoute
 }
@@ -177,10 +178,10 @@ export interface FileRouteTypes {
     | '/api/upload'
     | '/api/auth/$'
     | '/api/images/$'
-    | '/org/$orgId/'
     | '/org/$orgId/settings'
-    | '/org/$orgId/team/$teamId/'
+    | '/org/$orgId/'
     | '/org/$orgId/team/$teamId/settings'
+    | '/org/$orgId/team/$teamId/'
     | '/org/$orgId/team/$teamId/pages/$pageId'
     | '/org/$orgId/team/$teamId/pages/'
   fileRoutesByTo: FileRoutesByTo
@@ -195,10 +196,10 @@ export interface FileRouteTypes {
     | '/api/upload'
     | '/api/auth/$'
     | '/api/images/$'
-    | '/org/$orgId'
     | '/org/$orgId/settings'
-    | '/org/$orgId/team/$teamId'
+    | '/org/$orgId'
     | '/org/$orgId/team/$teamId/settings'
+    | '/org/$orgId/team/$teamId'
     | '/org/$orgId/team/$teamId/pages/$pageId'
     | '/org/$orgId/team/$teamId/pages'
   id:
@@ -213,10 +214,10 @@ export interface FileRouteTypes {
     | '/api/upload'
     | '/api/auth/$'
     | '/api/images/$'
-    | '/org/$orgId/'
     | '/org/$orgId/settings'
-    | '/org/$orgId/team/$teamId/'
+    | '/org/$orgId/'
     | '/org/$orgId/team/$teamId/settings'
+    | '/org/$orgId/team/$teamId/'
     | '/org/$orgId/team/$teamId/pages/$pageId'
     | '/org/$orgId/team/$teamId/pages/'
   fileRoutesById: FileRoutesById
@@ -232,10 +233,10 @@ export interface RootRouteChildren {
   ApiUploadRoute: typeof ApiUploadRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiImagesSplatRoute: typeof ApiImagesSplatRoute
-  OrgOrgIdIndexRoute: typeof OrgOrgIdIndexRoute
   OrgOrgIdSettingsRoute: typeof OrgOrgIdSettingsRoute
-  OrgOrgIdTeamTeamIdIndexRoute: typeof OrgOrgIdTeamTeamIdIndexRoute
+  OrgOrgIdIndexRoute: typeof OrgOrgIdIndexRoute
   OrgOrgIdTeamTeamIdSettingsRoute: typeof OrgOrgIdTeamTeamIdSettingsRoute
+  OrgOrgIdTeamTeamIdIndexRoute: typeof OrgOrgIdTeamTeamIdIndexRoute
   OrgOrgIdTeamTeamIdPagesPageIdRoute: typeof OrgOrgIdTeamTeamIdPagesPageIdRoute
   OrgOrgIdTeamTeamIdPagesIndexRoute: typeof OrgOrgIdTeamTeamIdPagesIndexRoute
 }
@@ -368,10 +369,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUploadRoute: ApiUploadRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiImagesSplatRoute: ApiImagesSplatRoute,
-  OrgOrgIdIndexRoute: OrgOrgIdIndexRoute,
   OrgOrgIdSettingsRoute: OrgOrgIdSettingsRoute,
-  OrgOrgIdTeamTeamIdIndexRoute: OrgOrgIdTeamTeamIdIndexRoute,
+  OrgOrgIdIndexRoute: OrgOrgIdIndexRoute,
   OrgOrgIdTeamTeamIdSettingsRoute: OrgOrgIdTeamTeamIdSettingsRoute,
+  OrgOrgIdTeamTeamIdIndexRoute: OrgOrgIdTeamTeamIdIndexRoute,
   OrgOrgIdTeamTeamIdPagesPageIdRoute: OrgOrgIdTeamTeamIdPagesPageIdRoute,
   OrgOrgIdTeamTeamIdPagesIndexRoute: OrgOrgIdTeamTeamIdPagesIndexRoute,
 }

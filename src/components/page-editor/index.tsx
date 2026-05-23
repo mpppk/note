@@ -89,6 +89,7 @@ export function PageEditor({
 	const headingACCompartmentRef = useRef(
 		createHeadingAutocompleteCompartment(),
 	);
+	const titlesRef = useRef(titles);
 
 	const [isSynced, setIsSynced] = useState(false);
 
@@ -97,6 +98,7 @@ export function PageEditor({
 	sectionsRef.current = sections;
 	onReorderRef.current = onReorder;
 	onEmbedSelectRef.current = onEmbedSelect;
+	titlesRef.current = titles;
 
 	// Update awareness user info when session becomes available
 	useEffect(() => {
@@ -239,7 +241,7 @@ export function PageEditor({
 				sectionRangesField.init(() => ranges),
 				autoLinkStaticExtensions(),
 				alComp.of([]),
-				headingAutocompleteExtension(haComp, []),
+				headingAutocompleteExtension(haComp, titlesRef.current ?? []),
 				yCollab(ytext, provider.awareness, { undoManager }),
 			],
 		});
