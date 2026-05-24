@@ -78,6 +78,7 @@ function buildHeadingAutocomplete(
 		override: [makeHeadingCompleteSource(titles)],
 		icons: false,
 		activateOnTyping: true,
+		selectOnOpen: false,
 	});
 }
 

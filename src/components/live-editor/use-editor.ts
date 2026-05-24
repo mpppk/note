@@ -1,7 +1,16 @@
 import { autocompletion } from "@codemirror/autocomplete";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { EditorState, type Extension } from "@codemirror/state";
+import {
+	defaultKeymap,
+	history,
+	historyKeymap,
+	insertNewlineAndIndent,
+} from "@codemirror/commands";
+import {
+	insertNewlineContinueMarkup,
+	markdown,
+	markdownLanguage,
+} from "@codemirror/lang-markdown";
+import { EditorState, type Extension, Prec } from "@codemirror/state";
 import {
 	drawSelection,
 	EditorView,
@@ -57,6 +66,22 @@ export function useEditor(options: UseEditorOptions) {
 		const state = EditorState.create({
 			doc: initialDocRef.current,
 			extensions: [
+				// Mobile: never return false from Enter handler — returning false lets
+				// the browser's native beforeinput fire, bypassing CodeMirror state.
+				Prec.high(
+					keymap.of([
+						{
+							key: "Enter",
+							run: (view) => {
+								if (insertNewlineContinueMarkup(view)) {
+									return true;
+								}
+								insertNewlineAndIndent(view);
+								return true;
+							},
+						},
+					]),
+				),
 				keymap.of([...defaultKeymap, ...historyKeymap]),
 				history(),
 				drawSelection(),

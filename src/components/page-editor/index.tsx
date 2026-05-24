@@ -236,7 +236,8 @@ export function PageEditor({
 								if (insertNewlineContinueMarkup(view)) {
 									return true;
 								}
-								return insertNewlineAndIndent(view);
+								insertNewlineAndIndent(view);
+								return true;
 							},
 						},
 					]),
