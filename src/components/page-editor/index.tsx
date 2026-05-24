@@ -188,7 +188,9 @@ export function PageEditor({
 				) {
 					const docStr = tr.state.doc.toString();
 					const newRanges = recomputeSectionRanges(docStr, sectionsRef.current);
-					update.view.dispatch({ effects: setSectionRangesEffect.of(newRanges) });
+					update.view.dispatch({
+						effects: setSectionRangesEffect.of(newRanges),
+					});
 				}
 				for (const effect of tr.effects) {
 					if (effect.is(embedSelectEffect)) {
