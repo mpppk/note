@@ -30,6 +30,7 @@ import { authClient } from "#/lib/auth-client";
 import {
 	mergeSections,
 	moveSectionEffect,
+	recomputeSectionRanges,
 	sectionRangesField,
 	setSectionRangesEffect,
 	splitDoc,
@@ -177,6 +178,18 @@ export function PageEditor({
 		const updateListener = EditorView.updateListener.of((update) => {
 			for (const tr of update.transactions) {
 				if (tr.effects.some((e) => e.is(setSectionRangesEffect))) continue;
+				// Recompute section ranges after initial Yjs sync populates the doc.
+				// When CodeMirror starts empty and Yjs inserts all content at once,
+				// mapPos clamps every position to 0, collapsing all ranges to {from:0,to:total}.
+				if (
+					tr.docChanged &&
+					tr.startState.doc.length === 0 &&
+					tr.state.doc.length > 0
+				) {
+					const docStr = tr.state.doc.toString();
+					const newRanges = recomputeSectionRanges(docStr, sectionsRef.current);
+					update.view.dispatch({ effects: setSectionRangesEffect.of(newRanges) });
+				}
 				for (const effect of tr.effects) {
 					if (effect.is(embedSelectEffect)) {
 						const { refId, lineFrom } = effect.value;

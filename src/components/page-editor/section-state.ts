@@ -107,6 +107,31 @@ export function findFirstEmbeddedH1H2(body: string): number {
 }
 
 /**
+ * Recomputes section ranges from the actual document content and section body lengths.
+ * Used after the initial Yjs sync populates the CodeMirror doc from an empty state,
+ * which causes mapPos to collapse all section ranges to {from:0, to:totalLen}.
+ */
+export function recomputeSectionRanges(
+	doc: string,
+	sections: { id: string; body: string }[],
+): SectionRange[] {
+	if (sections.length === 0) return [];
+	const ranges: SectionRange[] = [];
+	let offset = 0;
+	for (let i = 0; i < sections.length; i++) {
+		const isLast = i === sections.length - 1;
+		if (isLast) {
+			ranges.push({ id: sections[i].id, from: offset, to: doc.length });
+		} else {
+			const sectionEnd = Math.min(offset + sections[i].body.length, doc.length);
+			ranges.push({ id: sections[i].id, from: offset, to: sectionEnd });
+			offset = Math.min(sectionEnd + SECTION_SEPARATOR.length, doc.length);
+		}
+	}
+	return ranges;
+}
+
+/**
  * Splits body at every embedded H1/H2 boundary.
  * Returns [contentBeforeFirstHeading, headingSection1, headingSection2, ...].
  * Returns [body] unchanged if no embedded headings exist.
