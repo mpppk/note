@@ -181,6 +181,12 @@ export function PageEditor({
 					if (effect.is(embedSelectEffect)) {
 						const { refId, lineFrom } = effect.value;
 						const ranges = tr.startState.field(sectionRangesField);
+						console.debug(
+							"[embed] lineFrom:",
+							lineFrom,
+							"ranges:",
+							JSON.stringify(ranges),
+						);
 						let idx = ranges.findIndex(
 							(r) => r.from <= lineFrom && lineFrom <= r.to,
 						);
@@ -194,6 +200,12 @@ export function PageEditor({
 							// heading is at the very start of a section — embed belongs after the preceding section
 							idx -= 1;
 						}
+						console.debug(
+							"[embed] final idx:",
+							idx,
+							"id:",
+							idx !== -1 ? ranges[idx].id : "none",
+						);
 						if (idx !== -1) {
 							onEmbedSelectRef
 								.current?.(ranges[idx].id, refId)
