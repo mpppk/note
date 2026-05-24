@@ -5,9 +5,12 @@ import {
 	historyKeymap,
 	insertNewlineAndIndent,
 } from "@codemirror/commands";
-import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { insertNewlineContinueMarkup } from "@codemirror/lang-markdown";
-import { EditorState, Prec, type Extension } from "@codemirror/state";
+import {
+	insertNewlineContinueMarkup,
+	markdown,
+	markdownLanguage,
+} from "@codemirror/lang-markdown";
+import { EditorState, type Extension, Prec } from "@codemirror/state";
 import {
 	drawSelection,
 	EditorView,
