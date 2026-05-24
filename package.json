@@ -15,7 +15,7 @@
 		"check": "biome check",
 		"typecheck": "tsc",
 		"deploy": "bun run build && wrangler deploy",
-		"deploy:preview": "CLOUDFLARE_ENV=preview vite build && wrangler versions upload",
+		"deploy:preview": "CLOUDFLARE_ENV=preview bun run build && wrangler deploy --env preview",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
 		"db:migrate:local": "wrangler d1 migrations apply DB --local",

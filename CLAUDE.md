@@ -13,16 +13,20 @@
   * 例: `![todos page](https://i.gyazo.com/c61050ac7cb4454cdaa9525f41810987.png)`
 
 ### Cloudflare Workersの環境での動作確認
-* PR作成後に、Cloudflare Workersの環境が自動で立ち上がります。この環境が作成されたら、上記記載の動作確認をCloudflare Workersの環境で行なってください。
+* `bun run deploy:preview` でプレビュー環境にデプロイしてください。
+* デプロイ後、プレビュー環境のURLで動作確認を行なってください。
 
 # 環境
 ## 本番環境
 * URL: https://note.niboshi.workers.dev
 
 ## プレビュー環境
-プレビュー環境はPR作成後に自動で立ち上がります。URLはPRのコメントに記載されます。
-各プレビュー環境は`https://xxx.niboshi.workers.dev`のようなドメインを持ちます。
-各プレビュー環境は共通のD1データベースを使用します。したがって、あるプレビュー環境で作成されたBlock/Pageは、他のプレビュー環境からも確認できます。
+固定のプレビュー環境です。DOを使用しているためPRごとのプレビュー環境は作成できません。
+* URL: https://note-preview.niboshi.workers.dev
+* デプロイ: `bun run deploy:preview`（ローカルから手動実行）
+  * 内部的には `CLOUDFLARE_ENV=preview bun run build && wrangler deploy --env preview` を実行します
+  * `CLOUDFLARE_ENV=preview` は `@cloudflare/vite-plugin` がビルド時に使用する wrangler 環境を決定するために必要です。この変数なしでビルドすると production 向けになり、`--env preview` を渡しても production にデプロイされてしまいます
+* プレビュー環境は共通のD1データベース (`note-preview-db`) を使用します。したがって、あるPRでデプロイした内容は他のPRからも確認できます。
 
 ## テストユーザ
 テストユーザは以下の通りです。
