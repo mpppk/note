@@ -38,6 +38,9 @@ export const sectionRangesField = StateField.define<SectionRange[]>({
 			if (effect.is(setSectionRangesEffect)) return effect.value;
 		}
 		if (!tr.docChanged) return ranges;
+		// When doc starts empty, mapPos clamps all positions to 0, corrupting ranges.
+		// Preserve the initial DB-based ranges through the first Yjs sync.
+		if (tr.startState.doc.length === 0) return ranges;
 		const docLen = tr.startState.doc.length;
 		return ranges.map((range) => ({
 			...range,
