@@ -197,12 +197,24 @@ export function PageEditor({
 					if (effect.is(embedSelectEffect)) {
 						const { refId, lineFrom } = effect.value;
 						const ranges = tr.startState.field(sectionRangesField);
-						const section = ranges.find(
+						let idx = ranges.findIndex(
 							(r) => r.from <= lineFrom && lineFrom <= r.to,
 						);
-						if (section) {
+						if (idx === -1) {
+							// lineFrom is in a separator gap between sections — use
+							// the last section that ends before the cursor position.
+							idx = ranges.reduce(
+								(best, r, i) => (r.to < lineFrom ? i : best),
+								-1,
+							);
+						} else if (lineFrom === ranges[idx].from && idx > 0) {
+							// Heading starts exactly at a section boundary — embed
+							// belongs after the preceding section.
+							idx -= 1;
+						}
+						if (idx !== -1) {
 							onEmbedSelectRef
-								.current?.(section.id, refId)
+								.current?.(ranges[idx].id, refId)
 								.catch(console.error);
 						}
 					}
