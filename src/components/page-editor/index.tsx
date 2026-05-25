@@ -141,6 +141,22 @@ export function PageEditor({
 		});
 	}, [titles]);
 
+	// Resync section ranges when section structure changes (e.g., reconciliation splits a section).
+	// The field is initialized once at editor creation; if sections are split post-mount the
+	// field must be updated so embedSelectEffect resolves the correct afterSectionId.
+	useEffect(() => {
+		const view = viewRef.current;
+		if (!view) return;
+		const currentIds = view.state
+			.field(sectionRangesField)
+			.map((r) => r.id)
+			.join(",");
+		const newIds = sections.map((s) => s.id).join(",");
+		if (currentIds === newIds) return;
+		const { ranges: newRanges } = mergeSections(sections);
+		view.dispatch({ effects: setSectionRangesEffect.of(newRanges) });
+	}, [sections]);
+
 	// Create Yjs provider + CodeMirror editor together
 	// Recreates when dark mode or pageId changes
 	useEffect(() => {
@@ -181,12 +197,24 @@ export function PageEditor({
 					if (effect.is(embedSelectEffect)) {
 						const { refId, lineFrom } = effect.value;
 						const ranges = tr.startState.field(sectionRangesField);
-						const section = ranges.find(
+						let idx = ranges.findIndex(
 							(r) => r.from <= lineFrom && lineFrom <= r.to,
 						);
-						if (section) {
+						if (idx === -1) {
+							// lineFrom is in a separator gap between sections — use
+							// the last section that ends before the cursor position.
+							idx = ranges.reduce(
+								(best, r, i) => (r.to < lineFrom ? i : best),
+								-1,
+							);
+						} else if (lineFrom === ranges[idx].from && idx > 0) {
+							// Heading starts exactly at a section boundary — embed
+							// belongs after the preceding section.
+							idx -= 1;
+						}
+						if (idx !== -1) {
 							onEmbedSelectRef
-								.current?.(section.id, refId)
+								.current?.(ranges[idx].id, refId)
 								.catch(console.error);
 						}
 					}
