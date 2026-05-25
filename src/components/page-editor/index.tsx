@@ -141,6 +141,22 @@ export function PageEditor({
 		});
 	}, [titles]);
 
+	// Resync section ranges when section structure changes (e.g., reconciliation splits a section).
+	// The field is initialized once at editor creation; if sections are split post-mount the
+	// field must be updated so embedSelectEffect resolves the correct afterSectionId.
+	useEffect(() => {
+		const view = viewRef.current;
+		if (!view) return;
+		const currentIds = view.state
+			.field(sectionRangesField)
+			.map((r) => r.id)
+			.join(",");
+		const newIds = sections.map((s) => s.id).join(",");
+		if (currentIds === newIds) return;
+		const { ranges: newRanges } = mergeSections(sections);
+		view.dispatch({ effects: setSectionRangesEffect.of(newRanges) });
+	}, [sections]);
+
 	// Create Yjs provider + CodeMirror editor together
 	// Recreates when dark mode or pageId changes
 	useEffect(() => {
