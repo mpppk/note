@@ -12,7 +12,6 @@ import { PageEditor } from "#/components/page-editor";
 import { splitBodyAtAllH1H2 } from "#/components/page-editor/section-state";
 import { TitleManager } from "#/components/title-manager";
 import { Button } from "#/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -388,12 +387,8 @@ function PageDetailPage() {
 				</DialogContent>
 			</Dialog>
 
-			<Card className="mb-6">
-				<CardHeader>
-					<CardTitle className="text-base">Sections</CardTitle>
-				</CardHeader>
-				<CardContent>
-					{orderedIds.length === 0 ? (
+			<div className="mb-6">
+				{orderedIds.length === 0 ? (
 						<Button
 							variant="outline"
 							size="sm"
@@ -496,8 +491,7 @@ function PageDetailPage() {
 							))}
 						</>
 					)}
-				</CardContent>
-			</Card>
+			</div>
 		</main>
 	);
 }
