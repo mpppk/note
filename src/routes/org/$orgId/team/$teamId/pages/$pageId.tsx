@@ -12,7 +12,6 @@ import { PageEditor } from "#/components/page-editor";
 import { splitBodyAtAllH1H2 } from "#/components/page-editor/section-state";
 import { TitleManager } from "#/components/title-manager";
 import { Button } from "#/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -388,116 +387,111 @@ function PageDetailPage() {
 				</DialogContent>
 			</Dialog>
 
-			<Card className="mb-6">
-				<CardHeader>
-					<CardTitle className="text-base">Sections</CardTitle>
-				</CardHeader>
-				<CardContent>
-					{orderedIds.length === 0 ? (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => addFirstSection.mutate()}
-							disabled={addFirstSection.isPending}
-						>
-							最初のセクションを追加
-						</Button>
-					) : (
-						<>
-							{/* Text sections: unified Live Preview editor */}
-							{textSections.length > 0 && (
-								<PageEditor
-									pageId={pageId}
-									sections={textSections.map((s) => ({
-										id: s.id,
-										body: s.body,
-									}))}
-									onSave={(sectionId, body) =>
-										updateBody.mutateAsync({ sectionId, body })
-									}
-									onReorder={(newTextIds) => {
-										const newIds = [
-											...newTextIds,
-											...embedSections.map((s) => s.id),
-										];
-										setOrderedIds(newIds);
-										reorder.mutate(newIds);
-									}}
-									onAddSectionAfter={async (afterSectionId, body) => {
-										const result = await addSectionAfter.mutateAsync({
-											afterSectionId,
-											body,
-										});
-										return result.id;
-									}}
-									onDeleteSection={async (sectionId) => {
-										await removeSec.mutateAsync(sectionId);
-									}}
-									onEmbedSelect={async (afterSectionId, embedPageId) => {
-										await addEmbedAfter.mutateAsync({
-											afterSectionId,
-											embedPageId,
-										});
-									}}
-									dark={dark}
-									titles={teamTitles ?? []}
-									orgId={orgId}
-									teamId={teamId}
-									excludeRefIds={[pageId]}
-								/>
-							)}
+			<div className="mb-6">
+				{orderedIds.length === 0 ? (
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => addFirstSection.mutate()}
+						disabled={addFirstSection.isPending}
+					>
+						最初のセクションを追加
+					</Button>
+				) : (
+					<>
+						{/* Text sections: unified Live Preview editor */}
+						{textSections.length > 0 && (
+							<PageEditor
+								pageId={pageId}
+								sections={textSections.map((s) => ({
+									id: s.id,
+									body: s.body,
+								}))}
+								onSave={(sectionId, body) =>
+									updateBody.mutateAsync({ sectionId, body })
+								}
+								onReorder={(newTextIds) => {
+									const newIds = [
+										...newTextIds,
+										...embedSections.map((s) => s.id),
+									];
+									setOrderedIds(newIds);
+									reorder.mutate(newIds);
+								}}
+								onAddSectionAfter={async (afterSectionId, body) => {
+									const result = await addSectionAfter.mutateAsync({
+										afterSectionId,
+										body,
+									});
+									return result.id;
+								}}
+								onDeleteSection={async (sectionId) => {
+									await removeSec.mutateAsync(sectionId);
+								}}
+								onEmbedSelect={async (afterSectionId, embedPageId) => {
+									await addEmbedAfter.mutateAsync({
+										afterSectionId,
+										embedPageId,
+									});
+								}}
+								dark={dark}
+								titles={teamTitles ?? []}
+								orgId={orgId}
+								teamId={teamId}
+								excludeRefIds={[pageId]}
+							/>
+						)}
 
-							{/* Embed sections: shown as expandable inline blocks */}
-							{embedSections.map((s) => (
-								<div key={s.id} className="mt-4">
-									<div className="flex items-center justify-between gap-2 mb-1 text-xs text-muted-foreground">
-										<span className="font-medium">
-											📎 {s.embedPage?.titles[0] ?? s.embedPageId ?? "(embed)"}
-										</span>
-										<div className="flex items-center gap-1">
-											{s.embedPageId && (
-												<Link
-													to="/org/$orgId/team/$teamId/pages/$pageId"
-													params={{
-														orgId,
-														teamId,
-														pageId: s.embedPageId,
-													}}
-													className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors"
-												>
-													<ExternalLink className="h-3 w-3" />
-													開く
-												</Link>
-											)}
-											<Button
-												type="button"
-												variant="ghost"
-												size="sm"
-												className="h-6 text-xs text-muted-foreground hover:text-destructive px-1"
-												onClick={() => removeSec.mutate(s.id)}
+						{/* Embed sections: shown as expandable inline blocks */}
+						{embedSections.map((s) => (
+							<div key={s.id} className="mt-4">
+								<div className="flex items-center justify-between gap-2 mb-1 text-xs text-muted-foreground">
+									<span className="font-medium">
+										📎 {s.embedPage?.titles[0] ?? s.embedPageId ?? "(embed)"}
+									</span>
+									<div className="flex items-center gap-1">
+										{s.embedPageId && (
+											<Link
+												to="/org/$orgId/team/$teamId/pages/$pageId"
+												params={{
+													orgId,
+													teamId,
+													pageId: s.embedPageId,
+												}}
+												className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors"
 											>
-												削除
-											</Button>
-										</div>
+												<ExternalLink className="h-3 w-3" />
+												開く
+											</Link>
+										)}
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											className="h-6 text-xs text-muted-foreground hover:text-destructive px-1"
+											onClick={() => removeSec.mutate(s.id)}
+										>
+											削除
+										</Button>
 									</div>
-									{s.embedPage ? (
-										<EmbedPageView
-											embedPage={s.embedPage}
-											orgId={orgId}
-											teamId={teamId}
-											titles={teamTitles ?? []}
-										/>
-									) : (
-										<p className="text-sm text-muted-foreground italic">
-											(embedded page was deleted)
-										</p>
-									)}
 								</div>
-							))}
-						</>
-					)}
-				</CardContent>
-			</Card>
+								{s.embedPage ? (
+									<EmbedPageView
+										embedPage={s.embedPage}
+										orgId={orgId}
+										teamId={teamId}
+										titles={teamTitles ?? []}
+									/>
+								) : (
+									<p className="text-sm text-muted-foreground italic">
+										(embedded page was deleted)
+									</p>
+								)}
+							</div>
+						))}
+					</>
+				)}
+			</div>
 		</main>
 	);
 }
