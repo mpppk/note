@@ -87,7 +87,7 @@
 		"dotenv": "^17.3.1",
 		"jsdom": "^29.0.0",
 		"tsx": "^4.21.0",
-		"typescript": "^6.0.2",
+		"typescript": "^7.0.0",
 		"vite": "^8.0.0",
 		"vitest": "^4.1.5",
 		"wrangler": "^4.90.0"
